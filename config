@@ -187,6 +187,7 @@ exec nm-applet
 exec pasystray
 exec spotify
 exec google-chrome
+exec "insync start"
 exec steam
 exec gnome-terminal
 exec nautilus
