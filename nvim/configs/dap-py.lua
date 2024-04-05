@@ -7,7 +7,7 @@ dap.configurations.python = configs
 
 
 local function get_database_tables()
-  local handle = io.popen("python3 ~/Dev/Odoo/support/scripts/configs/getDBS.py")
+  local handle = io.popen("python3 ~/Dev/odoo/support/scripts/configs/getDBS.py")
   if handle == nil then return end
 
   local result = handle:read("*a")
@@ -24,6 +24,9 @@ end;
 local function get_args()
     return coroutine.create(function(dap_run_co)
         local items = get_database_tables()
+        if #items == 1 then
+          coroutine.resume(dap_run_co, {'start', items[0], '--vscode'})
+        end
         vim.ui.select(items, { prompt = "Select a Database:"; label = 'Select Datatabse: '}, function(choice)
           coroutine.resume(dap_run_co, {'start', choice, '--vscode'})
           end)
@@ -35,7 +38,7 @@ table.insert(configs, {
   request = 'launch';
   name = 'TEST';
   args = get_args;
-  program = '/home/andg/Dev/Odoo/support/support-tools/oe-support.py';
+  program = '/home/andg/Dev/odoo/support/support-tools/oe-support.py';
   pythonPath = '/home/andg/.pyenv/shims/python3';
   console = 'integratedTerminal'
 })
