@@ -18,5 +18,12 @@ M.dap = {
     ["<F8>"] = {function() require('persistent-breakpoints.api').set_conditional_breakpoint() end, "Create Conditional Breakpoint"}
   }
 }
+M.telescope = {
+  plugin = true,
+  n = {
+    ["<leader>fe"] = { "<cmd> Telescope file_browser <CR>", "File Browser" },
+    ["<leader>fc"] = {function() require("telescope-live-grep-args.shortcuts").grep_word_under_cursor() end, "Find Under Cursor"}
+  }
+}
 
 return M
