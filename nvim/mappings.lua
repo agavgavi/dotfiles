@@ -22,7 +22,11 @@ M.telescope = {
   plugin = true,
   n = {
     ["<leader>fe"] = { "<cmd> Telescope file_browser <CR>", "File Browser" },
-    ["<leader>fc"] = {function() require("telescope-live-grep-args.shortcuts").grep_word_under_cursor() end, "Find Under Cursor"}
+    ["<leader>fs"] = {function() require("telescope-live-grep-args.shortcuts").grep_word_under_cursor() end, "Find Under Cursor"}
+  },
+  v = {
+    ["<leader>fs"] = {function() require("telescope-live-grep-args.shortcuts").grep_visual_selection() end, "Find Under Cursor"}
+
   }
 }
 
