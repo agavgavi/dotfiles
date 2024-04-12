@@ -2,22 +2,20 @@ local plugins = {
   {
   'stevearc/dressing.nvim',
     lazy = false,
-    opts = {},
   },
   {
     "folke/noice.nvim",
     event = "VeryLazy",
-    opts = {
-      -- add any options here
-    },
     dependencies = {
-      -- if you lazy-load any plugin below, make sure to add proper `module="..."` entries
       "MunifTanjim/nui.nvim",
-      -- OPTIONAL:
-      --   `nvim-notify` is only needed, if you want to use the notification view.
-      --   If not available, we use `mini` as the fallback
       "rcarriga/nvim-notify",
-      }
+    },
+    config = function(opts)
+      require('custom.configs.noice')
+      require("notify").setup({
+        timeout = 50,
+      })
+    end
   },
   {
     "Shatur/neovim-session-manager",
@@ -124,11 +122,11 @@ local plugins = {
     "nvim-treesitter/nvim-treesitter",
     opts = {
       ensure_installed = {
-        -- defaults 
+        -- defaults
         "vim",
         "lua",
 
-        -- web dev 
+        -- web dev
         "html",
         "css",
         "javascript",

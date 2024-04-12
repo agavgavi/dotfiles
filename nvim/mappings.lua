@@ -1,12 +1,5 @@
 local M = {}
--- vim.keymap.set('n', '<F5>', require 'dap'.continue)
--- vim.keymap.set('n', '<F10>', require 'dap'.step_over)
--- vim.keymap.set('n', '<F11>', require 'dap'.step_into)
--- vim.keymap.set('n', '<F12>', require 'dap'.step_out)
--- vim.keymap.set('n', '<leader>b', require 'dap'.toggle_breakpoint)
--- vim.keymap.set('n', '<leader>B', function()
---   require 'dap'.set_breakpoint(vim.fn.input('Breakpoint condition: '))
--- end)
+
 M.dap = {
   plugin = true,
   n = {
@@ -18,16 +11,21 @@ M.dap = {
     ["<F8>"] = {function() require('persistent-breakpoints.api').set_conditional_breakpoint() end, "Create Conditional Breakpoint"}
   }
 }
-M.telescope = {
+
+M.telescope ={
   plugin = true,
   n = {
-    ["<leader>fe"] = { "<cmd> Telescope file_browser <CR>", "File Browser" },
-    ["<leader>fs"] = {function() require("telescope-live-grep-args.shortcuts").grep_word_under_cursor() end, "Find Under Cursor"}
+    ["<leader>fe"] = { "<cmd> Telescope file_browser path=%:p:h select_buffer=true <CR>", "File Browser" },
+    ["<leader>fs"] = {function() require("telescope-live-grep-args.shortcuts").grep_word_under_cursor() end, "Find Under Cursor"},
+    ["<leader>gt"] = { "<cmd> Telescope git_status use_file_path=true <CR>", "Git Status" }
   },
   v = {
     ["<leader>fs"] = {function() require("telescope-live-grep-args.shortcuts").grep_visual_selection() end, "Find Under Cursor"}
 
   }
 }
+
+vim.keymap.set('n', '<S-ScrollWheelDown>', 'z5l', { desc = 'Horizontal Scroll Right' })
+vim.keymap.set('n', '<S-ScrollWheelUp>', 'z5h', { desc = 'Horizontal Scroll Left' })
 
 return M
