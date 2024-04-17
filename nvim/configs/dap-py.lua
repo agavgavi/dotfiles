@@ -28,6 +28,9 @@ local function get_args()
           coroutine.resume(dap_run_co, {'start', items[0], '--vscode'})
         end
         vim.ui.select(items, { prompt = "Select a Database:"; label = 'Select Datatabse: '}, function(choice)
+          if choice == false then
+            coroutine.close(dap_run_co)
+          end
           coroutine.resume(dap_run_co, {'start', choice, '--vscode'})
           end)
       end)
