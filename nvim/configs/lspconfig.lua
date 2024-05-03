@@ -23,37 +23,37 @@ lspconfigs.odoo_lsp = {
 }
 lspconfig.odoo_lsp.setup({})
 
--- local border = {
---     { '┌', 'FloatBorder' },
---     { '─', 'FloatBorder' },
---     { '┐', 'FloatBorder' },
---     { '│', 'FloatBorder' },
---     { '┘', 'FloatBorder' },
---     { '─', 'FloatBorder' },
---     { '└', 'FloatBorder' },
---     { '│', 'FloatBorder' },
--- }
---
+local border = {
+    { '┌', 'FloatBorder' },
+    { '─', 'FloatBorder' },
+    { '┐', 'FloatBorder' },
+    { '│', 'FloatBorder' },
+    { '┘', 'FloatBorder' },
+    { '─', 'FloatBorder' },
+    { '└', 'FloatBorder' },
+    { '│', 'FloatBorder' },
+}
+
 vim.diagnostic.config({
   virtual_text = false,
   signs = true,
   underline = true,
   update_in_insert = false,
   severity_sort = true,
-  -- float = {border = border},
-  -- hover = {border = border}
+  float = {border = border},
+  hover = {border = border}
 })
 
--- local handlers =  {
---   ["textDocument/hover"] =  vim.lsp.with(vim.lsp.handlers.hover, {border = border}),
---   ["textDocument/signatureHelp"] =  vim.lsp.with(vim.lsp.handlers.signature_help, {border = border }),
--- }
+local handlers =  {
+  ["textDocument/hover"] =  vim.lsp.with(vim.lsp.handlers.hover, {border = border}),
+  ["textDocument/signatureHelp"] =  vim.lsp.with(vim.lsp.handlers.signature_help, {border = border }),
+}
 
 lspconfig.pyright.setup({
   on_attach = on_attach,
   capabilities = capabilities,
   filetypes = {"python"},
-  -- handlers = handlers,
+  handlers = handlers,
 })
 
 lspconfig.lemminx.setup({})
