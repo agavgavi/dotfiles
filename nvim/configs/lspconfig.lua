@@ -54,9 +54,44 @@ lspconfig.pyright.setup({
   capabilities = capabilities,
   filetypes = {"python"},
   handlers = handlers,
+  settings = {
+    pyright = {
+      -- Using Ruff's import organizer
+      disableOrganizeImports = true,
+    },
+    python = {
+      analysis = {
+        -- Ignore all files for analysis to exclusively use Ruff for linting
+        ignore = { '*' },
+      },
+    },
+  },
 })
 
-lspconfig.lemminx.setup({})
+lspconfig.ruff_lsp.setup({
+  on_attach = on_attach,
+  capabilities = capabilities,
+  filetypes = {"python"},
+  handlers = handlers,
+  init_options = {
+    settings = {
+      -- Any extra CLI arguments for `ruff` go here.
+      args = {
+        "--select", "ALL",
+        "--preview",
+        "--ignore", "ANN,B,C901,COM812,D,E501,E741,EM101,ERA001,FBT,I001,N,PD,PERF,PIE790,PLR,PT,Q,RET502,RET503,RSE102,RUF001,RUF012,S,SIM102,SIM108,SLF001,TID252,UP031,TRY002,TRY003,TRY300,UP038,E713,SIM117,PGH003,RUF005,RET,DTZ,FIX,TD,ARG,TRY400,B904,C408,PLW2901,PTH,EM102,INP001,CPY001,UP006,UP007,E266,PIE808,PLC2701,FURB101,RUF021,FURB118,FA100,FA102",
+      },
+    }
+  }
+})
+
+
+lspconfig.lemminx.setup({
+  on_attach = on_attach,
+  capabilities = capabilities,
+  filetypes = {"xml"},
+  handlers = handlers
+})
 lsp.setup()
 
 local cmp_action = require('lsp-zero').cmp_action()
