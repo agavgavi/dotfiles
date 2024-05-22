@@ -25,6 +25,27 @@ M.telescope ={
   }
 }
 
+local generate_dnd_string = function()
+  local template = "----------------Session X: Y----------------"
+  package.path = '/home/agavgavi/.config/nvim/lua/custom/?.lua;'..package.path
+  local ini_data = require('LIP').load('/home/agavgavi/Dev/test.ini')
+  local row, col = unpack(vim.api.nvim_win_get_cursor(0))
+  local filename = vim.fn.expand('%:t:r')
+  if (ini_data.SessionInfo[filename] == nil)then
+    ini_data.SessionInfo[filename] = 0
+  end
+
+  local number = ini_data.SessionInfo[filename]
+  ini_data.SessionInfo[filename] = number + 1
+  require('LIP').save('/home/agavgavi/Dev/test.ini', ini_data)
+
+  template = template:gsub("Y", os.date('%Y-%m-%d')):gsub("X", number)
+  local lines = {template, ""}
+  vim.api.nvim_buf_set_lines(0, row, row, true, lines)
+end
+
+vim.keymap.set('n', '<A-j>', generate_dnd_string, { noremap = true, silent = true , desc = 'Insert DnD String to file'})
+
 vim.keymap.set('n', '<S-ScrollWheelDown>', 'z5l', { desc = 'Horizontal Scroll Right' })
 vim.keymap.set('n', '<S-ScrollWheelUp>', 'z5h', { desc = 'Horizontal Scroll Left' })
 vim.keymap.set('n', '<A-u>',
@@ -32,3 +53,4 @@ function ()
   require('dapui').float_element('repl')
 end, {desc = 'Toggle REPL'})
 return M
+
