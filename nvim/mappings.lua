@@ -27,5 +27,8 @@ M.telescope ={
 
 vim.keymap.set('n', '<S-ScrollWheelDown>', 'z5l', { desc = 'Horizontal Scroll Right' })
 vim.keymap.set('n', '<S-ScrollWheelUp>', 'z5h', { desc = 'Horizontal Scroll Left' })
-
+vim.keymap.set('n', '<A-u>',
+function ()
+  require('dapui').float_element('repl')
+end, {desc = 'Toggle REPL'})
 return M
