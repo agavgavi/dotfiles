@@ -20,6 +20,7 @@ local plugins = {
   {
     "Shatur/neovim-session-manager",
     lazy = false,
+    commit = "a0b9d25",
     dependencies = "nvim-lua/plenary.nvim",
     config = function()
       require ("custom.configs.session")
@@ -50,6 +51,13 @@ local plugins = {
     config = function()
       require('custom.configs.dap-ui')
     end
+  },
+  {
+    "L3MON4D3/LuaSnip",
+    dependencies = { "mstuttgart/vscode-odoo-snippets" },
+    config = function(_, opts)
+      require("plugins.configs.others").luasnip(opts)
+    end,
   },
   {
     "Joakker/lua-json5",

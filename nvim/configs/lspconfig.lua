@@ -13,6 +13,7 @@ end)
 local lspconfig = require("lspconfig")
 
 local lspconfigs = require('lspconfig.configs')
+
 lspconfigs.odoo_lsp = {
   default_config = {
     name = 'odoo-lsp',
@@ -90,7 +91,14 @@ lspconfig.lemminx.setup({
   on_attach = on_attach,
   capabilities = capabilities,
   filetypes = {"xml"},
-  handlers = handlers
+  handlers = handlers,
+  settings = {
+    xml = {
+      format = {
+        splitAttributes = false
+      }
+    }
+  }
 })
 lsp.setup()
 

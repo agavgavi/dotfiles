@@ -39,7 +39,18 @@ end;
 table.insert(configs, {
   type = 'python';
   request = 'launch';
-  name = 'TEST';
+  name = 'Launch OE-Support';
+  args = get_args;
+  program = '/home/andg/Dev/odoo/support/support-tools/oe-support.py';
+  pythonPath = '/home/andg/.pyenv/shims/python3';
+  console = 'integratedTerminal'
+})
+local xml_configs = dap.configurations.xml or {}
+dap.configurations.xml = xml_configs
+table.insert(xml_configs, {
+  type = 'python';
+  request = 'launch';
+  name = 'Launch OE-Support';
   args = get_args;
   program = '/home/andg/Dev/odoo/support/support-tools/oe-support.py';
   pythonPath = '/home/andg/.pyenv/shims/python3';
