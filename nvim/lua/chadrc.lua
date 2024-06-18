@@ -1,6 +1,6 @@
 ---@type ChadrcConfig 
  local M = {}
  M.ui = {theme = 'catppuccin', statusline = { theme= 'vscode_colored' }}
- M.plugins = "custom.plugins"
- M.mappings = require "custom.mappings"
+ -- M.plugins = "plugins"
+ -- M.mappings = require "mappings"
 return M

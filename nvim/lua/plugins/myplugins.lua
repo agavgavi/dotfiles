@@ -11,7 +11,7 @@ local plugins = {
       "rcarriga/nvim-notify",
     },
     config = function(opts)
-      require('custom.configs.noice')
+      require('configs.noice')
       require("notify").setup({
         timeout = 50,
       })
@@ -20,10 +20,9 @@ local plugins = {
   {
     "Shatur/neovim-session-manager",
     lazy = false,
-    commit = "a0b9d25",
     dependencies = "nvim-lua/plenary.nvim",
     config = function()
-      require ("custom.configs.session")
+      require ("configs.session")
     end
   },
   {
@@ -49,14 +48,14 @@ local plugins = {
       "nvim-neotest/nvim-nio"
     },
     config = function()
-      require('custom.configs.dap-ui')
+      require('configs.dap-ui')
     end
   },
   {
     "L3MON4D3/LuaSnip",
     dependencies = { "mstuttgart/vscode-odoo-snippets" },
     config = function(_, opts)
-      require("plugins.configs.others").luasnip(opts)
+      require("nvchad.configs.luasnip")
     end,
   },
   {
@@ -66,9 +65,6 @@ local plugins = {
   {
     "mfussenegger/nvim-dap",
     ft = "python",
-    config = function(_, opts)
-      require("core.utils").load_mappings("dap")
-    end
   },
   {
     "mfussenegger/nvim-dap-python",
@@ -81,7 +77,7 @@ local plugins = {
       "Joakker/lua-json5",
     },
     config = function(_, opts)
-      require("custom.configs.dap-py")
+      require("configs.dap-py")
     end,
   },
   {
@@ -103,19 +99,20 @@ local plugins = {
     "jose-elias-alvarez/null-ls.nvim",
     ft = {"python"},
     opts = function()
-      return require "custom.configs.null-ls"
+      return require "configs.null-ls"
     end,
   },
   {
     "williamboman/mason.nvim",
     opts = {
       ensure_installed = {
-        -- "debugpy",
+        "debugpy",
         "pyright",
         "html-lsp",
         "json-lsp",
-        "biome",
-        "lemminx"
+        "eslint-lsp",
+        "lemminx",
+        "lua-language-server"
       },
     },
   },
@@ -137,8 +134,8 @@ local plugins = {
   {
     "neovim/nvim-lspconfig",
     config = function()
-      require "plugins.configs.lspconfig"
-      require "custom.configs.lspconfig"
+      require ("nvchad.configs.lspconfig").defaults()
+      require "configs.lspconfig"
     end,
   },
   {
