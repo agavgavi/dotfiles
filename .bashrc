@@ -127,7 +127,7 @@ source ~/Dev/odoo/support/support-tools/scripts/completion/clean-database-comple
 complete -o default -F _clean-database clean-database
 
 
-eval "$(oh-my-posh init bash --config ~/.config/oh-my-posh/catppuccin_mocha.omp.json)"
+eval "$(oh-my-posh init bash --config ~/.config/oh-my-posh/catppuccin_mocha.omp.toml)"
 
 export PYENV_ROOT="$HOME/.pyenv"
 command -v pyenv >/dev/null || export PATH="$PYENV_ROOT/bin:$PATH"
