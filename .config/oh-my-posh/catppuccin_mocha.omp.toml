@@ -76,9 +76,17 @@ version = 2
       "{{if gt .Code 0}}p:red{{end}}",
       "{{if eq .Code 0}}p:closer{{end}}"
     ]
-    template = "❯ "
+    template = "❯"
+
+[transient_prompt]
+  foreground_templates = [
+    "{{if gt .Code 0}}p:red{{end}}",
+    "{{if eq .Code 0}}p:closer{{end}}",
+  ]
+  background = 'transparent'
+  template = '❯ '
 
 [secondary_prompt]
   background = "transparent"
   foreground = "p:closer"
-  template = "❯❯ "
+  template = "❯❯"

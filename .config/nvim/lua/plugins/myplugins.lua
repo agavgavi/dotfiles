@@ -92,6 +92,7 @@ local plugins = {
     opts = {
       -- configurations go here
       show_dirname = true,
+      theme = { normal = { bg = "#1E1D2D"} }
     },
   },
 
