@@ -24,37 +24,20 @@ lspconfigs.odoo_lsp = {
 }
 lspconfig.odoo_lsp.setup({})
 
-local border = {
-    { '┌', 'FloatBorder' },
-    { '─', 'FloatBorder' },
-    { '┐', 'FloatBorder' },
-    { '│', 'FloatBorder' },
-    { '┘', 'FloatBorder' },
-    { '─', 'FloatBorder' },
-    { '└', 'FloatBorder' },
-    { '│', 'FloatBorder' },
-}
-
+local sev = vim.diagnostic.severity
 vim.diagnostic.config({
   virtual_text = false,
-  signs = true,
+  signs = { text = { [sev.ERROR] = "󰅙", [sev.WARN] = "", [sev.INFO] = "󰋼", [sev.HINT] = "󰌵" } },
   underline = true,
   update_in_insert = false,
   severity_sort = true,
-  float = {border = border},
-  hover = {border = border}
 })
 
-local handlers =  {
-  ["textDocument/hover"] =  vim.lsp.with(vim.lsp.handlers.hover, {border = border}),
-  ["textDocument/signatureHelp"] =  vim.lsp.with(vim.lsp.handlers.signature_help, {border = border }),
-}
 
 lspconfig.pyright.setup({
   on_attach = on_attach,
   capabilities = capabilities,
   filetypes = {"python"},
-  handlers = handlers,
   settings = {
     pyright = {
       -- Using Ruff's import organizer
@@ -73,7 +56,6 @@ lspconfig.ruff_lsp.setup({
   on_attach = on_attach,
   capabilities = capabilities,
   filetypes = {"python"},
-  handlers = handlers,
   init_options = {
     settings = {
       -- Any extra CLI arguments for `ruff` go here.
@@ -91,7 +73,6 @@ lspconfig.lemminx.setup({
   on_attach = on_attach,
   capabilities = capabilities,
   filetypes = {"xml"},
-  handlers = handlers,
   settings = {
     xml = {
       format = {

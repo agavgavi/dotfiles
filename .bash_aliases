@@ -5,10 +5,7 @@ alias odoo-bin='/home/andg/Dev/odoo/src/odoo/odoo-bin'
 alias clean-database='python3 ~/Dev/odoo/support/support-tools/clean_database.py'
 
 # Shortcuts
-alias osrc='cd /home/andg/Dev/odoo/src'
 alias psus='ssh 6914273@psus-tools.odoo.com'
-alias osup='cd /home/andg/Dev/odoo/support/'
-alias ouser='cd /home/andg/Dev/odoo/src/user/'
 alias findReq="find . -iname 'requirements*.txt' -exec pip install -r {} \;"
 alias onew='bash /home/andg/Dev/odoo/support/us-support/scripts/generic/newdb'
 alias update='sudo apt update; sudo apt upgrade;'
@@ -54,6 +51,7 @@ function oupdate() {
     ODOO_PATH=~/Dev/odoo/src
     # Store cwd so we can cd back to it after it's done
     cwd=$(pwd)
+    set -o shwordsplit
     FLAG=${1:-""}
     VERSIONS="14.0 15.0 saas-15.2 16.0 17.0 saas-16.1 saas-16.2 saas-16.3 saas-16.4 saas-17.1 master"
     VERSIONED="enterprise odoo design-themes"
@@ -95,6 +93,7 @@ function oupdate() {
 }
 
 function oswitch() {
+  set -o shwordsplit
   ODOO_PATH=~/Dev/odoo/src
   VERSION=${1:-""}
   ODOO_FOLDERS="odoo design-themes enterprise industry ../odoo-stubs"
