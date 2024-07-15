@@ -1,6 +1,6 @@
 local plugins = {
   {
-  'stevearc/dressing.nvim',
+    "stevearc/dressing.nvim",
     lazy = false,
   },
   {
@@ -11,56 +11,56 @@ local plugins = {
       "rcarriga/nvim-notify",
     },
     config = function(opts)
-      require('configs.noice')
-      require("notify").setup({
+      require "configs.noice"
+      require("notify").setup {
         timeout = 50,
-      })
-    end
+      }
+    end,
   },
   {
     "Shatur/neovim-session-manager",
     lazy = false,
     dependencies = "nvim-lua/plenary.nvim",
     config = function()
-      require ("configs.session")
-    end
+      require "configs.session"
+    end,
   },
   {
     "Weissle/persistent-breakpoints.nvim",
     dependencies = "mfussenegger/nvim-dap",
     config = function()
-      require('persistent-breakpoints').setup{
-	      load_breakpoints_event = { "BufReadPost" }
+      require("persistent-breakpoints").setup {
+        load_breakpoints_event = { "BufReadPost" },
       }
-    end
+    end,
   },
   {
     "theHamsta/nvim-dap-virtual-text",
     dependencies = "mfussenegger/nvim-dap",
     config = function()
       require("nvim-dap-virtual-text").setup()
-    end
+    end,
   },
-   {
+  {
     "rcarriga/nvim-dap-ui",
     dependencies = {
       "mfussenegger/nvim-dap",
-      "nvim-neotest/nvim-nio"
+      "nvim-neotest/nvim-nio",
     },
     config = function()
-      require('configs.dap-ui')
-    end
+      require "configs.dap-ui"
+    end,
   },
   {
     "L3MON4D3/LuaSnip",
     dependencies = { "mstuttgart/vscode-odoo-snippets" },
     config = function(_, opts)
-      require("nvchad.configs.luasnip")
+      require "nvchad.configs.luasnip"
     end,
   },
   {
     "Joakker/lua-json5",
-    build='./install.sh'
+    build = "./install.sh",
   },
   {
     "mfussenegger/nvim-dap",
@@ -77,7 +77,7 @@ local plugins = {
       "Joakker/lua-json5",
     },
     config = function(_, opts)
-      require("configs.dap-py")
+      require "configs.dap-py"
     end,
   },
   {
@@ -92,13 +92,13 @@ local plugins = {
     opts = {
       -- configurations go here
       show_dirname = true,
-      theme = { normal = { bg = "#1E1D2D"} }
+      theme = { normal = { bg = "#1E1D2D" } },
     },
   },
 
   {
     "jose-elias-alvarez/null-ls.nvim",
-    ft = {"python"},
+    ft = { "python" },
     opts = function()
       return require "configs.null-ls"
     end,
@@ -113,29 +113,29 @@ local plugins = {
         "json-lsp",
         "eslint-lsp",
         "lemminx",
-        "lua-language-server"
+        "lua-language-server",
       },
     },
   },
   {
-    'VonHeikemen/lsp-zero.nvim',
-    branch = 'v2.x',
+    "VonHeikemen/lsp-zero.nvim",
+    branch = "v2.x",
     dependencies = {
       -- LSP Support
-      {'neovim/nvim-lspconfig'},             -- Required
-      {'williamboman/mason.nvim'},           -- Optional
-      {'williamboman/mason-lspconfig.nvim'}, -- Optional
+      { "neovim/nvim-lspconfig" }, -- Required
+      { "williamboman/mason.nvim" }, -- Optional
+      { "williamboman/mason-lspconfig.nvim" }, -- Optional
 
       -- Autocompletion
-      {'hrsh7th/nvim-cmp'},     -- Required
-      {'hrsh7th/cmp-nvim-lsp'}, -- Required
-      {'L3MON4D3/LuaSnip'},     -- Required
-    }
+      { "hrsh7th/nvim-cmp" }, -- Required
+      { "hrsh7th/cmp-nvim-lsp" }, -- Required
+      { "L3MON4D3/LuaSnip" }, -- Required
+    },
   },
   {
     "neovim/nvim-lspconfig",
     config = function()
-      require ("nvchad.configs.lspconfig").defaults()
+      require("nvchad.configs.lspconfig").defaults()
       require "configs.lspconfig"
     end,
   },
@@ -156,41 +156,55 @@ local plugins = {
         "json",
         -- "vue", "svelte",
 
-       -- low level
+        -- low level
         "c",
         "python",
         "cpp",
         "bash",
-        "markdown"
+        "markdown",
       },
     },
   },
-  { 'nvim-telescope/telescope-fzf-native.nvim', build = 'make' },
+  { "nvim-telescope/telescope-fzf-native.nvim", build = "make" },
   {
     "nvim-telescope/telescope.nvim",
     dependencies = {
       {
-          "nvim-telescope/telescope-live-grep-args.nvim" ,
-          -- This will not install any breaking changes.
-          -- For major updates, this must be adjusted manually.
-          version = "^1.0.0",
+        "nvim-telescope/telescope-live-grep-args.nvim",
+        -- This will not install any breaking changes.
+        -- For major updates, this must be adjusted manually.
+        version = "^1.0.0",
       },
       {
         "nvim-telescope/telescope-file-browser.nvim",
-      }
+      },
     },
     opts = {
-      extensions_list = { "themes", "terms", "live_grep_args", "fzf"},
+      extensions_list = { "themes", "terms", "live_grep_args", "fzf" },
       extensions = {
         fzf = {
-          fuzzy = true,                    -- false will only do exact matching
-          override_generic_sorter = true,  -- override the generic sorter
-          override_file_sorter = true,     -- override the file sorter
-          case_mode = "smart_case",        -- or "ignore_case" or "respect_case"
-                                           -- the default case_mode is "smart_case"
+          fuzzy = true, -- false will only do exact matching
+          override_generic_sorter = true, -- override the generic sorter
+          override_file_sorter = true, -- override the file sorter
+          case_mode = "smart_case", -- or "ignore_case" or "respect_case"
+          -- the default case_mode is "smart_case"
+        },
+      },
+    },
+  },
+  {
+    "folke/which-key.nvim",
+    keys = { "<leader>", "<c-r>", "<c-w>", '"', "'", "`", "c", "v", "g" },
+    cmd = "WhichKey",
+    config = function(_, opts)
+      dofile(vim.g.base46_cache .. "whichkey")
+      require("which-key").setup({
+        delay = 0,
+        icons = {
+          rules = false
         }
-      }
-    }
-  }
+      })
+    end,
+  },
 }
 return plugins
