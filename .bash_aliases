@@ -7,7 +7,6 @@ alias clean-database='python3 ~/Dev/odoo/support/support-tools/clean_database.py
 # Shortcuts
 alias psus='ssh 6914273@psus-tools.odoo.com'
 alias findReq="find . -iname 'requirements*.txt' -exec pip install -r {} \;"
-alias onew='bash /home/andg/Dev/odoo/support/us-support/scripts/generic/newdb'
 alias update='sudo apt update; sudo apt upgrade;'
 
 function ofetch() {
@@ -20,6 +19,38 @@ function ofetch() {
     fi
     echo "oe-support fetch $DB_NAME $OTHERS"
     oe-support fetch $DB_NAME $OTHERS
+}
+
+function onew() {
+  DB_NAME=${1:-""}
+  shift;
+  OTHERS="$@"
+
+  if [[ "$DB_NAME" == "" ]] ; then
+      echo "ERROR MUST SPECIFY DB NAME"
+      return 1
+  fi
+
+  FS_FOLDER="/home/andg/.local/share/Odoo/filestore/oes_${DB_NAME}"
+
+  echo "killing connection to database $DB_NAME"
+  query="SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = 'oes_$DB_NAME';"
+  psql -d postgres -c $query
+
+  echo "Dropping database $DB_NAME"
+  dropdb oes_$DB_NAME --if-exists
+
+  echo "Will delete database filestore at folder: $FS_FOLDER"
+  read "brave?Here be dragons. Continue? "
+
+  if [[ "$brave" =~ ^[Yy]$ ]] then
+    echo "Deleting folder."
+    rm -rf $FS_FOLDER
+  else
+    echo "Skipping delete"
+  fi
+
+  odoo-bin -d oes_$DB_NAME $OTHERS -init --stop-after-init;
 }
 
 function orestore() {
@@ -45,6 +76,7 @@ function orestore() {
 GREEN='\033[0;32m'
 YELLOW='\033[0;33m'
 RED='\033[0;31m'
+BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
 function oupdate() {
@@ -94,6 +126,8 @@ function oupdate() {
 
 function oswitch() {
   set -o shwordsplit
+  set -o rematchpcre
+
   ODOO_PATH=~/Dev/odoo/src
   VERSION=${1:-""}
   ODOO_FOLDERS="odoo design-themes enterprise industry ../odoo-stubs"
@@ -107,8 +141,19 @@ function oswitch() {
 
   for fold in $ODOO_FOLDERS; do
     cd $fold
-    git checkout $VERSION
-    git pull
+    echo -e "${GREEN}Swapping ${YELLOW}$fold${NC}${GREEN} to ${BLUE}$VERSION${NC}${GREEN}...${NC}"
+    if git show-ref --quiet refs/heads/$VERSION; then
+      git checkout $VERSION
+      git pull
+    else
+      [[ $VERSION =~ '^(master|(saas-)?\d+.\d+)' ]]
+      head=$match[1]
+      echo -e "${RED}Can't find ${YELLOW}$VERSION${NC}${RED} branch, trying ${GREEN}$head${NC}"
+      if git show-ref --quiet refs/heads/$head; then
+        git checkout $head
+        git pull >> /dev/null
+      fi
+    fi
     cd ..
   done
 

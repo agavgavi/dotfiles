@@ -72,9 +72,6 @@ export PYTHONPATH=~/Dev/odoo/src/odoo:~/Dev/odoo/src/enterprise
 # source ~/Dev/odoo/support/support-tools/scripts/completion/clean-database-completion.sh
 # complete -o default -F _clean-database clean-database
 
-export PYENV_ROOT="$HOME/.pyenv"
-command -v pyenv >/dev/null || export PATH="$PYENV_ROOT/bin:$PATH"
-eval "$(pyenv init -)"
 . "$HOME/.cargo/env"
 
 
@@ -96,3 +93,11 @@ if [ -f ~/.bash_aliases ]; then
     . ~/.bash_aliases
 fi
 # zprof
+export PYDEVD_DISABLE_FILE_VALIDATION=1
+export PYENV_ROOT="$HOME/.pyenv"
+[[ -d $PYENV_ROOT/bin ]] && export PATH="$PYENV_ROOT/bin:$PATH"
+eval "$(pyenv init -)"
+
+export NVM_DIR="$HOME/.nvm"
+[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"  # This loads nvm
+[ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"  # This loads nvm bash_completion

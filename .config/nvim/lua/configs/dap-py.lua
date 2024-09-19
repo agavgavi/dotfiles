@@ -21,19 +21,39 @@ local function get_database_tables()
   return lines
 end;
 
-local function get_args()
+local function get_args_bin()
   return coroutine.create(function(dap_run_co)
     local items = get_database_tables()
     if items == nil then
       coroutine.close(dap_run_co)
     elseif #items == 1 then
-      coroutine.resume(dap_run_co, { 'start', items[1], '--vscode' })
+      local filter = string.format("--db-filter=^oes_%s$", items[1]);
+      coroutine.resume(dap_run_co, { filter, '--dev=reload,xml' })
     else
       vim.ui.select(items, { prompt = "Select a Database:", label = 'Select Datatabse: ' }, function(choice)
         if choice == false then
           coroutine.close(dap_run_co)
         end
-        coroutine.resume(dap_run_co, { 'start', choice, '--vscode' })
+        local filter = string.format("--db-filter=^oes_%s$", choice);
+        coroutine.resume(dap_run_co, { filter, '--dev=reload,xml' })
+      end)
+    end
+  end)
+end;
+
+local function get_args_oe()
+  return coroutine.create(function(dap_run_co)
+    local items = get_database_tables()
+    if items == nil then
+      coroutine.close(dap_run_co)
+    elseif #items == 1 then
+      coroutine.resume(dap_run_co, { 'start', items[1], '--vscode', '--dev=xml' })
+    else
+      vim.ui.select(items, { prompt = "Select a Database:", label = 'Select Datatabse: ' }, function(choice)
+        if choice == false then
+          coroutine.close(dap_run_co)
+        end
+        coroutine.resume(dap_run_co, { 'start', choice, '--vscode', '--dev=xml' })
       end)
     end
   end)
@@ -43,12 +63,23 @@ table.insert(configs, {
   type = 'python',
   justmycode = false,
   request = 'launch',
-  name = 'Launch OE-Support',
-  args = get_args,
-  program = '/home/andg/Dev/odoo/support/support-tools/oe-support.py',
+  name = 'Launch Odoo Bin',
+  args = get_args_bin,
+  program = '/home/andg/Dev/odoo/src/odoo/odoo-bin',
   pythonPath = '/home/andg/.pyenv/shims/python3',
   console = 'integratedTerminal'
 })
+
+-- table.insert(configs, {
+--   type = 'python',
+--   justmycode = false,
+--   request = 'launch',
+--   name = 'Launch OE-Support',
+--   args = get_args_oe,
+--   program = '/home/andg/Dev/odoo/support/support-tools/oe-support.py',
+--   pythonPath = '/home/andg/.pyenv/shims/python3',
+--   console = 'integratedTerminal'
+-- })
 local xml_configs = dap.configurations.xml or {}
 dap.configurations.xml = xml_configs
 table.insert(xml_configs, {

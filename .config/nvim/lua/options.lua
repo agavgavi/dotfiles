@@ -8,3 +8,4 @@ local o = vim.o
 vim.wo.wrap = false
 o.timeout = true
 o.timeoutlen = 0
+o.colorcolumn = "100"

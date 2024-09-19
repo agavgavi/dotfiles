@@ -95,7 +95,25 @@ local plugins = {
       theme = { normal = { bg = "#1E1D2D" } },
     },
   },
-
+  {
+      'cameron-wags/rainbow_csv.nvim',
+      config = true,
+      ft = {
+          'csv',
+          'tsv',
+          'csv_semicolon',
+          'csv_whitespace',
+          'csv_pipe',
+          'rfc_csv',
+          'rfc_semicolon'
+      },
+      cmd = {
+          'RainbowDelim',
+          'RainbowDelimSimple',
+          'RainbowDelimQuoted',
+          'RainbowMultiDelim'
+      }
+  },
   {
     "jose-elias-alvarez/null-ls.nvim",
     ft = { "python" },
@@ -106,15 +124,6 @@ local plugins = {
   {
     "williamboman/mason.nvim",
     opts = {
-      ensure_installed = {
-        "debugpy",
-        "pyright",
-        "html-lsp",
-        "json-lsp",
-        "eslint-lsp",
-        "lemminx",
-        "lua-language-server",
-      },
     },
   },
   {
@@ -146,6 +155,8 @@ local plugins = {
         -- defaults
         "vim",
         "lua",
+        "vimdoc",
+				"luadoc",
 
         -- web dev
         "html",
@@ -154,6 +165,7 @@ local plugins = {
         "typescript",
         "tsx",
         "json",
+        "rst",
         -- "vue", "svelte",
 
         -- low level
