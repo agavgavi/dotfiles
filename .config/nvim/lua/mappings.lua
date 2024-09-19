@@ -1,6 +1,10 @@
 require "nvchad.mappings"
 local map = vim.keymap.set
 
+-- tabs
+map("n","<leader>tb", "<cmd> tabnew <CR>", { desc = "buffer new tab"})
+
+
 -- dap
 map("n", "<F5>", function() require('dap').continue() end, { desc = "dap start debugging" })
 map("n", "<F10>", function() require('dap').step_over() end, { desc = "dap step over" })
@@ -9,7 +13,7 @@ map("n", "<S-F11>", function() require('dap').step_out() end, { desc = "dap step
 map("n", "<F9>", function() require('persistent-breakpoints.api').toggle_breakpoint() end, { desc = "dap toggle breakpoint" })
 map("n", "<F8>", function() require('persistent-breakpoints.api').set_conditional_breakpoint() end, { desc = "dap toggle conditional breakpoint" })
 map('n', '<A-u>', function() require('dapui').float_element('repl') end, { desc = 'dap toggle REPL' })
-
+map('n', '<A-o>', function () require('nvim-tree.api').tree.toggle();require("dapui").toggle(); end, { desc = 'dap toggle UI' })
 -- cmp
 map("n", "<leader>tt", function()
   vim.b.toggle_cmp = not vim.b.toggle_cmp
