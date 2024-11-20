@@ -35,7 +35,7 @@ function onew() {
 
   echo "killing connection to database $DB_NAME"
   query="SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = 'oes_$DB_NAME';"
-  psql -d postgres -c $query
+  psql -d postgres -c "$query"
 
   echo "Dropping database $DB_NAME"
   dropdb oes_$DB_NAME --if-exists
@@ -130,6 +130,7 @@ function oswitch() {
 
   ODOO_PATH=~/Dev/odoo/src
   VERSION=${1:-""}
+  DEFAULT=${2:-""}
   ODOO_FOLDERS="odoo design-themes enterprise industry ../odoo-stubs"
 
   if [[ "$VERSION" == "" ]] ; then
@@ -141,9 +142,14 @@ function oswitch() {
 
   for fold in $ODOO_FOLDERS; do
     cd $fold
+    git fetch >> /dev/null
     echo -e "${GREEN}Swapping ${YELLOW}$fold${NC}${GREEN} to ${BLUE}$VERSION${NC}${GREEN}...${NC}"
     if git show-ref --quiet refs/heads/$VERSION; then
       git checkout $VERSION
+      git pull
+    elif [[ $DEFAULT ]]; then
+      echo -e "${RED}Can't find ${YELLOW}$VERSION${NC}${RED} branch, using default ${GREEN}$DEFAULT${NC}"
+      git checkout $DEFAULT
       git pull
     else
       [[ $VERSION =~ '^(master|(saas-)?\d+.\d+)' ]]

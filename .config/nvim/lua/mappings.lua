@@ -25,12 +25,29 @@ map("n", "<leader>fe", "<cmd> Telescope file_browser path=%:p:h select_buffer=tr
   { desc = "telescope file browser" })
 map("n", "<leader>fs", function() require("telescope-live-grep-args.shortcuts").grep_word_under_cursor() end,
   { desc = "telescope find under cursor" })
+map("n", "<leader>fi", function() require("telescope-live-grep-args.shortcuts").grep_word_under_cursor({postfix = ' -F --no-ignore'}) end,
+  { desc = "telescope find all under cursor" })
+map("n", "<leader>fm", function() require("telescope.builtin").live_grep({default_text = "^\\s+(_name|_inherit).+=.+"}) end,
+  { desc = "telescope find models" })
 map("n", "<leader>cm", "<cmd>Telescope git_commits use_file_path=true <CR>", { desc = "telescope git commits" })
 map("n", "<leader>gt", "<cmd> Telescope git_status use_file_path=true <CR>", { desc = "telescope git status" })
 map("v", "<leader>fs", function() require("telescope-live-grep-args.shortcuts").grep_visual_selection() end,
   { desc = "telescope find under cursor" })
 map("n", "<leader>fr", "<cmd> Telescope lsp_references <CR>", { desc = "telescope list references" })
+map("n", "<leader>f<CR>", "<cmd> Telescope resume <CR>", { desc = 'telescope resume previous '})
+-- gitsigns
+map("n", "<leader>rh", "<cmd> Gitsigns reset_hunk <CR>", { desc = "git reset hunk"})
+map("n", "<leader>ph", "<cmd> Gitsigns preview_hunk <CR>", { desc = "git preview hunk"})
+map("n", "<leader>gb", "<cmd> Gitsigns blame_line <CR>", { desc = "git blame line"})
 
+
+-- menu
+map({'n', 'v'}, "<RightMouse>", function ()
+  vim.cmd.exec '"normal! \\<RightMouse>"'
+  local options = vim.bo.ft == "NvimTree" and "nvimtree" or "default"
+  require("menu").open(options, { mouse = true, border = true })
+end
+)
 
 local generate_dnd_string = function()
   local template = "----------------Session X: Y----------------"

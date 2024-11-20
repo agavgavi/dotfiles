@@ -5,10 +5,10 @@ local capabilities = config.capabilities
 
 vim.lsp.set_log_level('info')
 
-local lsp = require('lsp-zero').preset({})
-lsp.on_attach(function(client, bufnr)
-	lsp.default_keymaps({buffer = bufnr})
-end)
+-- local lsp = require('lsp-zero').preset({})
+-- lsp.on_attach(function(client, bufnr)
+	-- lsp.default_keymaps({buffer = bufnr})
+-- end)
 
 local lspconfig = require("lspconfig")
 
@@ -52,7 +52,7 @@ lspconfig.pyright.setup({
   },
 })
 
-lspconfig.ruff_lsp.setup({
+lspconfig.ruff.setup({
   on_attach = on_attach,
   capabilities = capabilities,
   filetypes = {"python"},
@@ -82,19 +82,12 @@ lspconfig.lemminx.setup({
   }
 })
 
-lspconfig.ltex.setup({
-  on_attach = on_attach,
-  capabilities = capabilities,
-  filetypes = {"rst"},
-})
+-- lsp.setup()
 
-
-lsp.setup()
-
-local cmp_action = require('lsp-zero').cmp_action()
-require('cmp').setup {
-  mapping = {
-    ['<Tab>'] = cmp_action.luasnip_supertab(),
-    ['<S-Tab>'] = cmp_action.luasnip_shift_supertab(),
-  }
-}
+-- local cmp_action = require('lsp-zero').cmp_action()
+-- require('cmp').setup {
+  -- mapping = {
+    -- ['<Tab>'] = cmp_action.luasnip_supertab(),
+    -- ['<S-Tab>'] = cmp_action.luasnip_shift_supertab(),
+  -- }
+-- }
