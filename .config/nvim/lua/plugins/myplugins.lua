@@ -218,5 +218,9 @@ local plugins = {
       })
     end,
   },
+  {
+    "nvim-tree/nvim-tree.lua",
+    opts = {filters = {dotfiles = true }}
+  }
 }
 return plugins

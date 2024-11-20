@@ -1,10 +1,11 @@
 ---@type ChadrcConfig
 local M = {}
 M.ui = {
-  theme = "catppuccin",
   statusline = { theme = "vscode_colored" },
+  cmp = {lspkind_text = true, style = "default", format_colors = { tailwind = true}}
 }
 M.base46 = {
+  theme = "catppuccin",
   integrations = {
     "bufferline",
     "dap",
@@ -24,6 +25,13 @@ M.mason = {
         "ltex",
   }
 }
+
+ M.colorify = {
+   enabled = true,
+   mode = "virtual", -- fg, bg, virtual
+   virt_text = "󱓻 ",
+   highlight = { hex = true, lspvars = true },
+ }
 -- M.plugins = "plugins"
 -- M.mappings = require "mappings"
 return M
