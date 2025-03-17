@@ -49,14 +49,14 @@ dap.listeners.after.event_initialized["dapui_config"] = function()
 end
 
 dap.listeners.before.event_terminated["dapui_config"] = function()
-  print("Terminated")
   dapui.close()
+  vim.o.laststatus=3;
   treeapi.tree.open()
 end
 
 dap.listeners.before.event_exited["dapui_config"] = function()
-  print("Exited")
   dapui.close()
+  vim.o.laststatus=3;
   treeapi.tree.open()
 end
 
