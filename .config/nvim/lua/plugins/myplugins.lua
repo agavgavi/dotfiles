@@ -1,5 +1,9 @@
 local plugins = {
   {
+    'whenrow/odoo-ls.nvim',
+    dependencies = { 'neovim/nvim-lspconfig' }
+  },
+  {
     "stevearc/dressing.nvim",
     lazy = false,
   },
@@ -64,6 +68,7 @@ local plugins = {
   },
   {
     "mfussenegger/nvim-dap",
+    -- dependencies ={ { "igorlfs/nvim-dap-view", opts = {} }},
     ft = "python",
   },
   {
@@ -81,19 +86,19 @@ local plugins = {
     end,
   },
   {
-    "utilyre/barbecue.nvim",
+    'Bekaboo/dropbar.nvim',
     lazy = false,
-    name = "barbecue",
-    version = "*",
+    -- optional, but required for fuzzy finder support
     dependencies = {
-      "SmiteshP/nvim-navic",
-      "nvim-tree/nvim-web-devicons", -- optional dependency
+      'nvim-telescope/telescope-fzf-native.nvim',
+      build = 'make'
     },
-    opts = {
-      -- configurations go here
-      show_dirname = true,
-      theme = { normal = { bg = "#1E1D2D" } },
-    },
+    config = function()
+      local dropbar_api = require('dropbar.api')
+      vim.keymap.set('n', '<Leader>;', dropbar_api.pick, { desc = 'Pick symbols in winbar' })
+      vim.keymap.set('n', '[;', dropbar_api.goto_context_start, { desc = 'Go to start of current context' })
+      vim.keymap.set('n', '];', dropbar_api.select_next_context, { desc = 'Select next context' })
+    end
   },
   {
       'cameron-wags/rainbow_csv.nvim',
@@ -115,30 +120,8 @@ local plugins = {
       }
   },
   {
-    "jose-elias-alvarez/null-ls.nvim",
-    ft = { "python" },
-    opts = function()
-      return require "configs.null-ls"
-    end,
-  },
-  {
     "williamboman/mason.nvim",
     opts = {
-    },
-  },
-  {
-    "VonHeikemen/lsp-zero.nvim",
-    branch = "v2.x",
-    dependencies = {
-      -- LSP Support
-      { "neovim/nvim-lspconfig" }, -- Required
-      { "williamboman/mason.nvim" }, -- Optional
-      { "williamboman/mason-lspconfig.nvim" }, -- Optional
-
-      -- Autocompletion
-      { "hrsh7th/nvim-cmp" }, -- Required
-      { "hrsh7th/cmp-nvim-lsp" }, -- Required
-      { "L3MON4D3/LuaSnip" }, -- Required
     },
   },
   {
@@ -220,7 +203,7 @@ local plugins = {
   },
   {
     "nvim-tree/nvim-tree.lua",
-    opts = {filters = {dotfiles = true }}
+    opts = {git = {enable = false}, filters = {dotfiles = true }}
   }
 }
 return plugins

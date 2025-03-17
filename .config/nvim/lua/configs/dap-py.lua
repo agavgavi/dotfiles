@@ -2,12 +2,17 @@ local path = "~/.local/share/nvim/mason/packages/debugpy/venv/bin/python"
 require("dap-python").setup(path, { include_configs = false })
 
 local dap = require("dap")
-local configs = dap.configurations.python or {}
-dap.configurations.python = configs
-
+local py_configs = dap.configurations.python or {}
+dap.configurations.python = py_configs
+local xml_configs = dap.configurations.xml or {}
+dap.configurations.xml = xml_configs
+local js_configs = dap.configurations.js or {}
+dap.configurations.js = js_configs
+local tree_configs = dap.configurations.NvimTree or {}
+dap.configurations.NvimTree = tree_configs
 
 local function get_database_tables()
-  local handle = io.popen("python3 ~/Dev/odoo/support/scripts/configs/getDBS.py")
+  local handle = io.popen("python3 ~/Dev/support/scripts/configs/getDBS.py")
   if handle == nil then return end
 
   local result = handle:read("*a")
@@ -21,85 +26,43 @@ local function get_database_tables()
   return lines
 end;
 
+local function get_name(database)
+  local name, _ = database:match"^(.+) (.+)";
+  local filter = string.format("--db-filter=^oes_%s$", name);
+  return {filter, "--dev=reload,xml"};
+end;
+
 local function get_args_bin()
   return coroutine.create(function(dap_run_co)
     local items = get_database_tables()
     if items == nil then
       coroutine.close(dap_run_co)
     elseif #items == 1 then
-      local filter = string.format("--db-filter=^oes_%s$", items[1]);
-      coroutine.resume(dap_run_co, { filter, '--dev=reload,xml' })
+      coroutine.resume(dap_run_co, get_name(items[1]))
     else
       vim.ui.select(items, { prompt = "Select a Database:", label = 'Select Datatabse: ' }, function(choice)
-        if choice == false then
-          coroutine.close(dap_run_co)
+        if choice == nil then
+          coroutine.resume(dap_run_co, dap.ABORT)
+        else
+          coroutine.resume(dap_run_co, get_name(choice));
         end
-        local filter = string.format("--db-filter=^oes_%s$", choice);
-        coroutine.resume(dap_run_co, { filter, '--dev=reload,xml' })
       end)
     end
   end)
 end;
 
-local function get_args_oe()
-  return coroutine.create(function(dap_run_co)
-    local items = get_database_tables()
-    if items == nil then
-      coroutine.close(dap_run_co)
-    elseif #items == 1 then
-      coroutine.resume(dap_run_co, { 'start', items[1], '--vscode', '--dev=xml' })
-    else
-      vim.ui.select(items, { prompt = "Select a Database:", label = 'Select Datatabse: ' }, function(choice)
-        if choice == false then
-          coroutine.close(dap_run_co)
-        end
-        coroutine.resume(dap_run_co, { 'start', choice, '--vscode', '--dev=xml' })
-      end)
-    end
-  end)
-end;
-
-table.insert(configs, {
+local odoo_config = {
   type = 'python',
   justmycode = false,
   request = 'launch',
   name = 'Launch Odoo Bin',
   args = get_args_bin,
-  program = '/home/andg/Dev/odoo/src/odoo/odoo-bin',
+  program = '/home/andg/Dev/src/odoo/odoo-bin',
   pythonPath = '/home/andg/.pyenv/shims/python3',
   console = 'integratedTerminal'
-})
+};
 
--- table.insert(configs, {
---   type = 'python',
---   justmycode = false,
---   request = 'launch',
---   name = 'Launch OE-Support',
---   args = get_args_oe,
---   program = '/home/andg/Dev/odoo/support/support-tools/oe-support.py',
---   pythonPath = '/home/andg/.pyenv/shims/python3',
---   console = 'integratedTerminal'
--- })
-local xml_configs = dap.configurations.xml or {}
-dap.configurations.xml = xml_configs
-table.insert(xml_configs, {
-  type = 'python',
-  request = 'launch',
-  name = 'Launch OE-Support',
-  args = get_args,
-  program = '/home/andg/Dev/odoo/support/support-tools/oe-support.py',
-  pythonPath = '/home/andg/.pyenv/shims/python3',
-  console = 'integratedTerminal'
-})
-
--- table.insert(configs, {
--- type = 'python';
--- request = 'attach';
--- name = 'Attach Odoo';
--- connect = function()
--- return { host = '127.0.0.1', port = 5678 }
--- end;
--- })
-
--- require('dap.ext.vscode').json_decode = require'json5'.parse
--- require('dap.ext.vscode').load_launchjs(nil, {})
+table.insert(py_configs, odoo_config)
+table.insert(xml_configs, odoo_config)
+table.insert(js_configs, odoo_config)
+table.insert(tree_configs, odoo_config)
