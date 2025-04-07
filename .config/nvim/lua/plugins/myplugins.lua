@@ -4,10 +4,6 @@ local plugins = {
     dependencies = { 'neovim/nvim-lspconfig' }
   },
   {
-    "stevearc/dressing.nvim",
-    lazy = false,
-  },
-  {
     "folke/noice.nvim",
     event = "VeryLazy",
     dependencies = {
@@ -25,9 +21,10 @@ local plugins = {
     "Shatur/neovim-session-manager",
     lazy = false,
     dependencies = "nvim-lua/plenary.nvim",
-    config = function()
-      require "configs.session"
-    end,
+  },
+  {
+    "rhysd/conflict-marker.vim",
+    lazy = false,
   },
   {
     "Weissle/persistent-breakpoints.nvim",
@@ -42,17 +39,14 @@ local plugins = {
     "theHamsta/nvim-dap-virtual-text",
     dependencies = "mfussenegger/nvim-dap",
     config = function()
-      require("nvim-dap-virtual-text").setup()
-    end,
-  },
-  {
-    "rcarriga/nvim-dap-ui",
-    dependencies = {
-      "mfussenegger/nvim-dap",
-      "nvim-neotest/nvim-nio",
-    },
-    config = function()
-      require "configs.dap-ui"
+      require("nvim-dap-virtual-text").setup({
+        -- display_callback = function(variable)
+        --   if #variable.value > 15 then
+        --     return ' ' .. variable.value:sub(1, 15) .. '...'
+        --   end
+        --   return ' ' .. variable.value
+        -- end,
+      })
     end,
   },
   {
@@ -63,23 +57,24 @@ local plugins = {
     end,
   },
   {
-    "Joakker/lua-json5",
-    build = "./install.sh",
-  },
-  {
     "mfussenegger/nvim-dap",
-    -- dependencies ={ { "igorlfs/nvim-dap-view", opts = {} }},
+    dependencies = {
+      {
+        "igorlfs/nvim-dap-view",
+        config = function(_, opts)
+            require("configs.dap-view")
+        end
+      }
+    },
     ft = "python",
   },
   {
     "mfussenegger/nvim-dap-python",
     ft = "python",
     dependencies = {
-      "mfussenegger/nvim-dap-python",
-      "rcarriga/nvim-dap-ui",
+      "mfussenegger/nvim-dap",
       "theHamsta/nvim-dap-virtual-text",
       "Weissle/persistent-breakpoints.nvim",
-      "Joakker/lua-json5",
     },
     config = function(_, opts)
       require "configs.dap-py"
@@ -101,28 +96,23 @@ local plugins = {
     end
   },
   {
-      'cameron-wags/rainbow_csv.nvim',
-      config = true,
-      ft = {
-          'csv',
-          'tsv',
-          'csv_semicolon',
-          'csv_whitespace',
-          'csv_pipe',
-          'rfc_csv',
-          'rfc_semicolon'
-      },
-      cmd = {
-          'RainbowDelim',
-          'RainbowDelimSimple',
-          'RainbowDelimQuoted',
-          'RainbowMultiDelim'
-      }
-  },
-  {
-    "williamboman/mason.nvim",
-    opts = {
+    'cameron-wags/rainbow_csv.nvim',
+    config = true,
+    ft = {
+      'csv',
+      'tsv',
+      'csv_semicolon',
+      'csv_whitespace',
+      'csv_pipe',
+      'rfc_csv',
+      'rfc_semicolon'
     },
+    cmd = {
+      'RainbowDelim',
+      'RainbowDelimSimple',
+      'RainbowDelimQuoted',
+      'RainbowMultiDelim'
+    }
   },
   {
     "neovim/nvim-lspconfig",
@@ -139,7 +129,7 @@ local plugins = {
         "vim",
         "lua",
         "vimdoc",
-				"luadoc",
+        "luadoc",
 
         -- web dev
         "html",
@@ -152,6 +142,7 @@ local plugins = {
         -- "vue", "svelte",
 
         -- low level
+        "xml",
         "c",
         "python",
         "cpp",
@@ -191,6 +182,7 @@ local plugins = {
     "folke/which-key.nvim",
     keys = { "<leader>", "<c-r>", "<c-w>", '"', "'", "`", "c", "v", "g" },
     cmd = "WhichKey",
+    event = "VeryLazy",
     config = function(_, opts)
       dofile(vim.g.base46_cache .. "whichkey")
       require("which-key").setup({
@@ -202,8 +194,23 @@ local plugins = {
     end,
   },
   {
+    "folke/snacks.nvim",
+    lazy = false,
+    opts = {
+      explorer = {enable = true},
+      picker = {
+        sources = {
+          explorer = {
+            focus = "input",
+            auto_close = true,
+          },
+        },
+      }
+    }
+  },
+  {
     "nvim-tree/nvim-tree.lua",
-    opts = {git = {enable = false}, filters = {dotfiles = true }}
+    enabled = false,
   }
 }
 return plugins

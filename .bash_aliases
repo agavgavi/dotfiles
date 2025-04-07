@@ -46,7 +46,7 @@ function onew() {
     echo "Will delete database filestore at folder: $FS_FOLDER"
     read "brave?Here be dragons. Continue? "
 
-    if [[ "$brave" =~ ^[Yy].+$ ]] then
+    if [[ "$brave" =~ ^[Yy].*$ ]] then
       echo "Deleting folder."
       rm -rf $FS_FOLDER
     else

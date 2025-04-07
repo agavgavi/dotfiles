@@ -1,10 +1,39 @@
 local use_odoo_lsp = true
 
-vim.lsp.set_log_level('info')
 local sev = vim.diagnostic.severity
+
+local signs = { [sev.ERROR] = "󰅙", [sev.WARN] = "", [sev.INFO] = "󰋼", [sev.HINT] = "󰌵" }
+
+local shorter_source_names = {
+    ["Lua Diagnostics."] = "Lua",
+    ["Lua Syntax Check."] = "Lua",
+}
+
+local function diagnostic_format(diagnostic)
+    if diagnostic.source and diagnostic.code then
+      return string.format(
+          "%s %s (%s): %s",
+          signs[diagnostic.severity],
+          shorter_source_names[diagnostic.source] or diagnostic.source,
+          diagnostic.code,
+          diagnostic.message
+      )
+    end
+    return string.format(
+        "%s %s",
+        signs[diagnostic.severity],
+        diagnostic.message
+    )
+
+end
+
 vim.diagnostic.config({
   virtual_text = false,
-  signs = { text = { [sev.ERROR] = "󰅙", [sev.WARN] = "", [sev.INFO] = "󰋼", [sev.HINT] = "󰌵" } },
+  signs = { text = signs },
+  virtual_lines = {
+    current_line = true,
+    format = diagnostic_format,
+  },
   underline = true,
   update_in_insert = false,
   severity_sort = true,
@@ -44,7 +73,7 @@ local servers = {
           args = {
             "--select", "ALL",
             "--preview",
-            "--ignore", "ANN,B,C901,COM812,D,E501,E741,EM101,ERA001,FBT,I001,N,PD,PERF,PIE790,PLR,PT,Q,RET502,RET503,RSE102,RUF001,RUF012,S,SIM102,SIM108,SLF001,TID252,UP031,TRY002,TRY003,TRY300,UP038,E713,SIM117,PGH003,RUF005,RET,DTZ,FIX,TD,ARG,TRY400,B904,C408,PLW2901,PTH,FURB103,EM102,INP001,CPY001,UP006,UP007,E266,PIE808,PLC2701,FURB101,RUF021,FURB118,RUF100,FA100,FURB152,DOC,C420,A,FA102"
+            "--ignore", "A,ARG,ANN,B,C901,D,DTZ,DOC,E501,E741,ERA001,FBT,N,PD,PERF,PIE790,PLR,PT,Q,RET,RSE102,RUF001,RUF012,S,SIM102,SIM108,SLF001,TID252,UP031,TRY003,TRY300,UP038,E713,SIM117,PGH003,RUF005,FIX,TD,TRY400,C408,PLW2901,PTH,EM102,INP001,CPY001,UP006,UP007,E266,PIE808,PLC2701,RUF021,RUF100,FA100,FURB,C420,COM812,TRY002,B904,EM101,I001,FAST,ASYNC,AIR,DJ,NPY,FA102",
           },
         },
       },
