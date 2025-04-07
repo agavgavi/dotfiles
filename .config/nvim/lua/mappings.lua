@@ -1,20 +1,35 @@
 require "nvchad.mappings"
 local map = vim.keymap.set
+local nomap = vim.keymap.del
 
 local lga_shortcuts = require("telescope-live-grep-args.shortcuts")
+local snacks = require('snacks')
 -- tabs
 map("n","<leader>tb", "<cmd> tabnew <CR>", { desc = "buffer new tab"})
 
+-- snacks
+map("n", "<leader>e", function()
+  if snacks.picker.get({ source = "explorer" })[1] == nil then
+    snacks.picker.explorer()
+  elseif snacks.picker.get({ source = "explorer" })[1]:is_focused() == true then
+    snacks.picker.explorer()
+  elseif snacks.picker.get({ source = "explorer" })[1]:is_focused() == false then
+    snacks.picker.get({ source = "explorer" })[1]:focus()
+  end
+end,
+  { desc = 'snacks explorer focus toggle '}
+)
+nomap("n", "<C-n>")
 
 -- dap
-map("n", "<F5>", function() require('dap').continue() end, { desc = "dap start debugging" })
-map("n", "<F10>", function() require('dap').step_over() end, { desc = "dap step over" })
-map("n", "<F11>", function() require('dap').step_into() end, { desc = "dap step into" })
-map("n", "<S-F11>", function() require('dap').step_out() end, { desc = "dap step out" })
+map("n", "<F17>", "<cmd> DapTerminate <CR>", { desc = "dap stop debugging" })
+map("n", "<F5>", "<cmd> DapContinue <CR>", { desc = "dap start debugging" })
+map("n", "<F10>", "<cmd> DapStepOver <CR>", { desc = "dap step over" })
+map("n", "<F11>", "<cmd> DapStepInto <CR>", { desc = "dap step into" })
+map("n", "<F23>", "<cmd> DapStepOut <CR>", { desc = "dap step out" })
 map("n", "<F9>", function() require('persistent-breakpoints.api').toggle_breakpoint() end, { desc = "dap toggle breakpoint" })
 map("n", "<F8>", function() require('persistent-breakpoints.api').set_conditional_breakpoint() end, { desc = "dap toggle conditional breakpoint" })
-map('n', '<A-u>', function() require('dapui').float_element('repl') end, { desc = 'dap toggle REPL' })
-map('n', '<A-o>', function ()vim.o.laststatus=3; require('nvim-tree.api').tree.toggle();require("dapui").toggle(); end, { desc = 'dap toggle UI' })
+map('n', '<A-o>', "<cmd> DapViewToggle <CR>", { desc = 'dap toggle UI' })
 -- cmp
 map("n", "<leader>tt", function()
   vim.b.toggle_cmp = not vim.b.toggle_cmp
@@ -79,15 +94,24 @@ map("n", "<leader>go", function()
     return
   end
 
+  local first_remote = ""
+  local second_remote = ""
+  if string.find(branch_name, '-andg') then
+    first_remote = "dev"
+    second_remote = "origin"
+  else
+    first_remote = "origin"
+    second_remote = "dev"
+  end
   -- Try dev remote first, then fall back to origin
-  local remote_name = "origin"
-  local origin_url = vim.fn.systemlist("git config --get remote.origin.url")[1]
-
+  local remote_url = string.format("git config --get remote.%s.url", first_remote)
+  local origin_url = vim.fn.systemlist(remote_url)[1]
+  local remote_name = first_remote
   -- If dev remote doesn't exist or doesn't have a URL, try origin
   if not origin_url or origin_url == "" then
-    remote_name = "dev"
-    origin_url = vim.fn.systemlist("git config --get remote.dev.url")[1]
-
+    remote_url = string.format("git config --get remote.%s.url", second_remote)
+    origin_url = vim.fn.systemlist(remote_url)[1]
+    remote_name = second_remote
     if not origin_url or origin_url == "" then
       print("Could not find URL for either dev or origin remote")
       vim.fn.chdir(original_cwd) -- Restore original directory
@@ -112,14 +136,6 @@ map("n", "<leader>go", function()
 
   print("Opened GitHub link for remote '" .. remote_name .. "': " .. github_url)
 end, { desc = "git open in GitHub"})
-
--- menu
-map({'n', 'v'}, "<RightMouse>", function ()
-  vim.cmd.exec '"normal! \\<RightMouse>"'
-  local options = vim.bo.ft == "NvimTree" and "nvimtree" or "default"
-  require("menu").open(options, { mouse = true, border = true })
-end
-)
 
 local generate_dnd_string = function()
   local template = "----------------Session X: Y----------------"
