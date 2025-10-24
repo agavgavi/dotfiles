@@ -1,7 +1,12 @@
 local plugins = {
   {
-    'whenrow/odoo-ls.nvim',
-    dependencies = { 'neovim/nvim-lspconfig' }
+    "folke/todo-comments.nvim",
+    event='VeryLazy',
+    dependencies = { "nvim-lua/plenary.nvim" },
+    config = function(opts)
+      require("todo-comments").setup {
+      }
+    end,
   },
   {
     "folke/noice.nvim",
@@ -122,6 +127,14 @@ local plugins = {
     end,
   },
   {
+    "lewis6991/gitsigns.nvim",
+    opts = function()
+      local o = require "nvchad.configs.gitsigns"
+      o['preview_config'] = {border = 'rounded'}
+      return o
+    end,
+  },
+  {
     "nvim-treesitter/nvim-treesitter",
     opts = {
       ensure_installed = {
@@ -182,7 +195,7 @@ local plugins = {
     "folke/which-key.nvim",
     keys = { "<leader>", "<c-r>", "<c-w>", '"', "'", "`", "c", "v", "g" },
     cmd = "WhichKey",
-    event = "VeryLazy",
+    lazy = false,
     config = function(_, opts)
       dofile(vim.g.base46_cache .. "whichkey")
       require("which-key").setup({
@@ -197,16 +210,40 @@ local plugins = {
     "folke/snacks.nvim",
     lazy = false,
     opts = {
-      explorer = {enable = true},
-      picker = {
-        sources = {
-          explorer = {
-            focus = "input",
-            auto_close = true,
+      picker = { enabled = true }
+    }
+  },
+  { import = "nvchad.blink.lazyspec" },
+  {
+    "zbirenbaum/copilot.lua",
+    cmd = "Copilot",
+    event = "InsertEnter",
+    opts = {
+      suggestion = { enabled = false },
+      panel = { enabled = false },
+      filetypes = {
+        markdown = true,
+        help = true,
+      },
+    },
+  },
+  {
+    "saghen/blink.cmp",
+    optional = true,
+    dependencies = { "fang2hou/blink-copilot" },
+    opts = {
+      sources = {
+        default = { "copilot" },
+        providers = {
+          copilot = {
+            name = "copilot",
+            module = "blink-copilot",
+            score_offset = 100,
+            async = true,
           },
         },
-      }
-    }
+      },
+    },
   },
   {
     "nvim-tree/nvim-tree.lua",

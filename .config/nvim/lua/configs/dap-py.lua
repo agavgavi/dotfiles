@@ -1,15 +1,17 @@
-local path = "~/.local/share/nvim/mason/packages/debugpy/venv/bin/python"
+local path = "/home/andg/.pyenv/shims/python3"
 require("dap-python").setup(path, { include_configs = false })
 
 local dap = require("dap")
+dap.providers.configs['dap.launch.json'] = function ()
+  return {}
+end
+
 local py_configs = dap.configurations.python or {}
 dap.configurations.python = py_configs
 local xml_configs = dap.configurations.xml or {}
 dap.configurations.xml = xml_configs
 local js_configs = dap.configurations.js or {}
 dap.configurations.js = js_configs
-local tree_configs = dap.configurations.NvimTree or {}
-dap.configurations.NvimTree = tree_configs
 
 local function get_database_tables()
   local handle = io.popen("python3 ~/Dev/support/scripts/configs/getDBS.py")
@@ -28,8 +30,10 @@ end;
 
 local function get_name(database)
   local name, _ = database:match"^(.+) (.+)";
-  local filter = string.format("--db-filter=^oes_%s$", name);
-  return {filter, "--dev=reload,xml"};
+  local filter = string.format("-does_%s", name);
+  return {filter}
+  -- return {filter, '--log-sql'};
+  -- return {filter, '--test-tags=.test_06_failed_edi_ran_as_cron', '--stop-after-init'};
 end;
 
 local function get_args_bin()
@@ -58,11 +62,18 @@ local odoo_config = {
   name = 'Launch Odoo Bin',
   args = get_args_bin,
   program = '/home/andg/Dev/src/odoo/odoo-bin',
-  pythonPath = '/home/andg/.pyenv/shims/python3',
+  pythonPath = path,
   console = 'integratedTerminal'
 };
 
+-- table.insert(py_configs, {
+--   type = 'python',
+--   request = 'launch',
+--   name = 'My custom launch configuration',
+--   program = '${file}',
+--   console = 'integratedTerminal'
+--   -- ... more options, see https://github.com/microsoft/debugpy/wiki/Debug-configuration-settings
+-- })
 table.insert(py_configs, odoo_config)
 table.insert(xml_configs, odoo_config)
 table.insert(js_configs, odoo_config)
-table.insert(tree_configs, odoo_config)

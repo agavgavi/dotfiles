@@ -7,6 +7,14 @@ vim.api.nvim_create_autocmd({ "BufWritePre" }, {
   end,
 })
 
+vim.api.nvim_create_autocmd ("TermOpen",  {
+      callback = function(args)
+           if(vim.bo[args.buf].buftype == "terminal") then
+              vim.bo[args.buf].buflisted = false
+          end
+      end
+})
+
 function dump(o)
    if type(o) == 'table' then
       local left = '{ '
