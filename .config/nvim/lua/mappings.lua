@@ -7,18 +7,7 @@ local snacks = require('snacks')
 -- tabs
 map("n","<leader>tb", "<cmd> tabnew <CR>", { desc = "buffer new tab"})
 
--- snacks
-map("n", "<leader>e", function()
-  if snacks.picker.get({ source = "explorer" })[1] == nil then
-    snacks.picker.explorer()
-  elseif snacks.picker.get({ source = "explorer" })[1]:is_focused() == true then
-    snacks.picker.explorer()
-  elseif snacks.picker.get({ source = "explorer" })[1]:is_focused() == false then
-    snacks.picker.get({ source = "explorer" })[1]:focus()
-  end
-end,
-  { desc = 'snacks explorer focus toggle '}
-)
+nomap("n", "<leader>e")
 nomap("n", "<C-n>")
 
 -- dap
@@ -30,6 +19,7 @@ map("n", "<F23>", "<cmd> DapStepOut <CR>", { desc = "dap step out" })
 map("n", "<F9>", function() require('persistent-breakpoints.api').toggle_breakpoint() end, { desc = "dap toggle breakpoint" })
 map("n", "<F8>", function() require('persistent-breakpoints.api').set_conditional_breakpoint() end, { desc = "dap toggle conditional breakpoint" })
 map('n', '<A-o>', "<cmd> DapViewToggle <CR>", { desc = 'dap toggle UI' })
+map("n", "K", function()  vim.lsp.buf.hover { border = "rounded" } end, { desc = "LSP show details", silent = true })
 -- cmp
 map("n", "<leader>tt", function()
   vim.b.toggle_cmp = not vim.b.toggle_cmp
@@ -46,6 +36,9 @@ map("n", "<leader>fI", function() lga_shortcuts.grep_word_under_cursor({postfix 
 map("n", "<leader>fi", function() require("telescope.builtin").live_grep({prompt_title = 'Live Grep (All Files)', additional_args = {'--no-ignore'}}) end,
   { desc = "telescope find all" })
 
+map("n", "<leader>fD", function() require("telescope.builtin").live_grep({prompt_title = 'Search Dependencies', additional_args = {'-g=**__manifest__.py'}}) end,
+  { desc = "telescope find dependencies" })
+
 map("n", "<leader>fm", "<cmd>Telescope live_grep default_text=^\\s+(_name|_inherit).+=.+ <CR>", { desc = "telescope find models" })
 map("n", "<leader>fM", "<cmd>Telescope live_grep default_text=^\\s+_name.+=.+ <CR>", { desc = "telescope find models" })
 map("n", "<leader>fv", "<cmd>Telescope live_grep default_text=name=.model.> <CR>", { desc = "telescope find view by model" })
@@ -60,8 +53,9 @@ map("n", "<leader>rh", "<cmd> Gitsigns reset_hunk <CR>", { desc = "git reset hun
 map("n", "<leader>ph", "<cmd> Gitsigns preview_hunk <CR>", { desc = "git preview hunk"})
 map("n", "<leader>gb", "<cmd> Gitsigns blame_line <CR>", { desc = "git blame line"})
 
+local open_in_github = function(blame)
+  blame = blame or false
 
-map("n", "<leader>go", function()
   local file_path = vim.fn.expand("%:p")
   local line_num, col_num = unpack(vim.api.nvim_win_get_cursor(0))
   if file_path == "" then
@@ -125,7 +119,12 @@ map("n", "<leader>go", function()
   -- Extract the relative path from the file path
   local relative_path = file_path:sub(#git_root + 2)
 
-  local github_url = repo_url .. "/blob/" .. branch_name .. "/" .. relative_path .. "#L" .. line_num
+  local url_page = "/blob/"
+  if blame then
+    url_page = "/blame/"
+  end
+
+  local github_url = repo_url .. url_page .. branch_name .. "/" .. relative_path .. "#L" .. line_num
   local command = "open " .. vim.fn.shellescape(github_url)
 
   -- Run the open command
@@ -135,7 +134,12 @@ map("n", "<leader>go", function()
   vim.fn.chdir(original_cwd)
 
   print("Opened GitHub link for remote '" .. remote_name .. "': " .. github_url)
-end, { desc = "git open in GitHub"})
+end
+
+
+
+map("n", "<leader>go", function() open_in_github(false) end, { desc = "git open in GitHub"})
+map("n", "<leader>gO", function() open_in_github(true) end, { desc = "git blame in GitHub"})
 
 local generate_dnd_string = function()
   local template = "----------------Session X: Y----------------"

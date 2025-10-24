@@ -11,6 +11,10 @@ fi
 # Source/Load zinit
 source "${ZINIT_HOME}/zinit.zsh"
 
+
+export PATH="$PATH:/usr/local/bin:${HOME}/.local/bin:${HOME}/.cargo/bin:${HOME}/.pyenv/bin:${HOME}/.local/share/bob/nvim-bin"
+
+
 # Configure Oh My Posh
 eval "$(oh-my-posh init zsh --config ~/.config/oh-my-posh/catppuccin_mocha.omp.toml)"
 
@@ -70,14 +74,11 @@ export PYTHONPATH=~/Dev/odoo/src/odoo:~/Dev/odoo/src/enterprise
 # complete -o default -F _oe-support oe-support
 #
 # source ~/Dev/odoo/support/support-tools/scripts/completion/clean-database-completion.sh
-# complete -o default -F _clean-database clean-database
-
-. "$HOME/.cargo/env"
+# complete -o default -F _clean-database clean-dat
 
 
 alias cat=bat
 export BAT_THEME="Catppuccin Mocha"
-export PATH="$PATH:$HOME/.local/share/bob/nvim-bin"
 alias more=bat
 alias vim=nvim
 
@@ -93,15 +94,17 @@ alias l='eza --icons'
 if [ -f ~/.bash_aliases ]; then
     . ~/.bash_aliases
 fi
+if [ -f ~/.bash_aliases_support ]; then
+    . ~/.bash_aliases_support
+fi
 # zprof
 export PYDEVD_DISABLE_FILE_VALIDATION=1
 export PYENV_ROOT="$HOME/.pyenv"
 [[ -d $PYENV_ROOT/bin ]] && export PATH="$PYENV_ROOT/bin:$PATH"
 eval "$(pyenv init -)"
 
-export NVM_DIR="$HOME/.nvm"
-[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"  # This loads nvm
-[ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"  # This loads nvm bash_completion
+export NVM_DIR="$([ -z "${XDG_CONFIG_HOME-}" ] && printf %s "${HOME}/.nvm" || printf %s "${XDG_CONFIG_HOME}/nvm")"
+[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh" # This loads nvm
 
 # pnpm
 export PNPM_HOME="/home/andg/.local/share/pnpm"

@@ -17,10 +17,20 @@ dv.setup(
     winbar = {
       show = true,
       -- You can add a "console" section to merge the terminal with the other views
-      sections = {"console", "breakpoints", "repl", "watches", "exceptions", "threads", },
+      sections = {"console", "breakpoints", "repl", "scopes", "watches", "exceptions", "threads", },
       -- Must be one of the sections declared above
       default_section = "console",
-    }
+      base_sections = {
+        breakpoints = { label = "[B] ",},
+        scopes = { label = "[S] 󰂥",},
+        exceptions = { label = "[E] 󰢃",},
+        watches = { label = "[W] 󰛐",},
+        threads = { label = "[T] 󱉯",},
+        repl = { label = "[R] 󰯃",},
+        console = { label = "[C] 󰆍",},
+      },
+    },
+    switchbuf = "uselast,useopen",
   }
 )
 
