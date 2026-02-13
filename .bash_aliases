@@ -1,15 +1,18 @@
 #!/usr/bin/bash
 
 BOLD=$'\033[1m'
-CYAN=$'\033[36m'
-GREEN='\033[0;32m'
-YELLOW='\033[0;33m'
-RED='\033[0;31m'
-BLUE='\033[0;34m'
-NC=$'\033[0m' # No Color
+CYAN=$'\033[38;5;6m'    # Theme Cyan
+GREEN=$'\033[38;5;2m'   # Theme Green
+YELLOW=$'\033[38;5;3m'  # Theme Yellow
+RED=$'\033[38;5;1m'     # Theme Red
+BLUE=$'\033[38;5;4m'    # Theme Blue
+GRAY=$'\033[38;5;8m'    # Theme "Bright Black" (usually the Gray in most themes)
+NC=$'\033[0m'           # No Color
 
 
 alias odoo-bin='~/Dev/src/odoo/odoo-bin'
+alias odoo-iap='~/Dev/src/iap/odoo-18.0/odoo-bin -c ~/.odoorc-iap'
+alias htop='btop'
 
 # Shortcuts
 alias psus='ssh 6914273@psus-tools.odoo.com'
@@ -95,6 +98,23 @@ function onew() {
   cd $cwd
 }
 
+function otest() {
+  DB_NAME=${1:-""}
+  shift;
+  OTHERS="$@"
+
+  if [[ "$DB_NAME" == "" ]] ; then
+    echo "ERROR MUST SPECIFY DB NAME"
+    return 1
+  fi
+  cwd=$(pwd)
+
+  cd ~/Dev/src/
+  echo "odoo-bin -d oes_$DB_NAME --test-tags $OTHERS --stop-after-init"
+  odoo-bin -d oes_$DB_NAME --test-tags $OTHERS --stop-after-init;
+  cd $cwd
+}
+
 # Update all folders
 function oupdate() {
     ODOO_PATH=~/Dev/src
@@ -168,7 +188,7 @@ function oswitch() {
   ODOO_PATH=~/Dev/src
   VERSION=""
   DEFAULT=""
-  ODOO_FOLDERS="odoo enterprise ../documentation ../odoo-stubs"
+  ODOO_FOLDERS="odoo enterprise"
   # Function to display usage
   usage() {
     echo "Usage: $0 <target_branch> [-f|--fallback <fallback_branch>]"
@@ -216,8 +236,8 @@ function oswitch() {
 
   for fold in $ODOO_FOLDERS; do
     cd $fold
-    git fetch >> /dev/null
     echo -e "${GREEN}Swapping ${YELLOW}$fold${NC}${GREEN} to ${BLUE}$VERSION${NC}${GREEN}...${NC}"
+    git fetch >> /dev/null
     # Checkout specific branch if it exists on repo
     if git show-ref --quiet refs/heads/$VERSION; then
       git checkout $VERSION
@@ -263,27 +283,19 @@ olist() {
         ) &
     done
 
-    # Wait for all background jobs to complete
     wait
 
-    # Collect results in order
     local db_data=()
     for dbname in $databases; do
         [[ -z "$dbname" ]] && continue
-        if [[ -f "$tmpdir/$dbname" ]]; then
-            db_data+=("$(cat "$tmpdir/$dbname")")
-        fi
+        [[ -f "$tmpdir/$dbname" ]] && db_data+=("$(cat "$tmpdir/$dbname")")
     done
 
-    # Cleanup temp directory
     rm -rf "$tmpdir"
-
-    # Clear the loading message
     print -n "\r\033[K"
 
-    # Build the entire table output (using actual newlines)
     local output=""
-    output+="${BOLD}┌──────────────────────────────────────────┬──────────────────────┐${NC}
+    output+="${BOLD}╭──────────────────────────────────────────┬──────────────────────╮${NC}
 "
     output+="$(printf "${BOLD}│${NC} ${BLUE}${BOLD}%-40s${NC} ${BOLD}│${NC} ${GREEN}${BOLD}%-20s${NC} ${BOLD}│${NC}" "Database Name" "Version")
 "
@@ -293,14 +305,13 @@ olist() {
     for entry in $db_data; do
         local dbname=${entry%%|*}
         local version=${entry##*|}
-        output+="$(printf "${BOLD}│${NC} ${CYAN}%-40s${NC} ${BOLD}│${NC} ${GREEN}%-20s${NC} ${BOLD}│${NC}" "$dbname" "$version")
+        local prefix="oes_"
+        local suffix="${dbname#$prefix}"
+        output+="$(printf "${BOLD}│${NC} ${GRAY}oes_${CYAN}%-36s${NC} ${BOLD}│${NC} ${GREEN}%-20s${NC} ${BOLD}│${NC}" "$suffix" "$version")
 "
     done
 
-    output+="${BOLD}└──────────────────────────────────────────┴──────────────────────┘${NC}
-"
+    output+="${BOLD}╰──────────────────────────────────────────┴──────────────────────╯${NC}"
 
-    # Print the entire table at once
     print -r "$output"
-    print -P "%F{green}✓ Done.${NC}"
 }
