@@ -1,5 +1,7 @@
 local use_odoo_lsp = false
 
+-- Set the log level to info
+vim.lsp.log.set_level('info')
 local sev = vim.diagnostic.severity
 
 local signs = { [sev.ERROR] = "󰅙", [sev.WARN] = "", [sev.INFO] = "󰋼", [sev.HINT] = "󰌵" }
@@ -39,6 +41,18 @@ vim.diagnostic.config({
   severity_sort = true,
 })
 
+-- Patch for lemminx/nvim-lspconfig issue: https://github.com/neovim/neovim/issues/30985
+local orig_unregister = vim.lsp.client._unregister
+vim.lsp.client._unregister = function(self, unregistrations)
+  return orig_unregister(self, unregistrations or {})
+end
+
+local orig_register = vim.lsp.client._register
+vim.lsp.client._register = function(self, registrations)
+  return orig_register(self, registrations or {})
+end
+
+
 function andg_list_workspace_folders()
   for _, client in pairs(vim.lsp.get_clients({ bufnr = 0 })) do
     for _, folder in pairs(client.workspace_folders or {}) do
@@ -54,6 +68,7 @@ capabilities.general.markdown = {
 }
 
 local servers = {
+  vtsls = {active = true, opts = {}},
   lua_ls = {active = true, opts = {}},
   bashls = {active = true, opts = {}},
   html = {active = true, opts = {}},
@@ -73,7 +88,7 @@ local servers = {
       root_dir = '/home/andg/.local/share/nvim/odoo',
       filetypes = {'python', 'csv', 'xml'},
       workspace_folders = {{
-        uri = vim.uri_from_fname('/home/andg/Dev/'),
+        uri = vim.uri_from_fname(vim.fn.getcwd()),
         name = 'main_folder',
       }},
       capabilities = capabilities,
@@ -115,6 +130,12 @@ local servers = {
     opts = {
       settings = {
         xml = {
+          -- completion = {
+          --   autoCloseTags = true,
+          -- },
+          symbols = {
+            enabled = true,
+          },
           format = {
             splitAttributes = false
           },

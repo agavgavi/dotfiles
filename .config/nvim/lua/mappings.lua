@@ -1,9 +1,13 @@
 require "nvchad.mappings"
+local use_telescope = false
 local map = vim.keymap.set
 local nomap = vim.keymap.del
 
-local lga_shortcuts = require("telescope-live-grep-args.shortcuts")
-local snacks = require('snacks')
+
+map('n', '<leader>rs', function() require("persistence").load() end, {desc = 'persistance load local session'})
+map('n', '<leader>rS', function() require("persistence").select() end, {desc = 'persistance select session'})
+
+map("n", "<leader>ta", function() require("minuet").toggle_auto_trigger(); print("AI Autocomplete Toggled") end, { desc = "Toggle AI Autocomplete" })
 -- tabs
 map("n","<leader>tb", "<cmd> tabnew <CR>", { desc = "buffer new tab"})
 
@@ -20,34 +24,55 @@ map("n", "<F9>", function() require('persistent-breakpoints.api').toggle_breakpo
 map("n", "<F8>", function() require('persistent-breakpoints.api').set_conditional_breakpoint() end, { desc = "dap toggle conditional breakpoint" })
 map('n', '<A-o>', "<cmd> DapViewToggle <CR>", { desc = 'dap toggle UI' })
 map("n", "K", function()  vim.lsp.buf.hover { border = "rounded" } end, { desc = "LSP show details", silent = true })
--- cmp
-map("n", "<leader>tt", function()
-  vim.b.toggle_cmp = not vim.b.toggle_cmp
-  require('cmp').setup.buffer { enabled = not vim.b.toggle_cmp }
-end, { desc = "cmp toggle autocompletion" })
 
 -- telescope
-map("n", "<leader>fe", "<cmd> Telescope file_browser path=%:p:h select_buffer=true <CR>", { desc = "telescope file browser" })
-map("n", "<leader>fs", lga_shortcuts.grep_word_under_cursor, { desc = "telescope find under cursor" })
-map("v", "<leader>fs", lga_shortcuts.grep_visual_selection, { desc = "telescope find under cursor" })
+if (use_telescope) then
+  local lga_shortcuts = require("telescope-live-grep-args.shortcuts")
+  map("n", "<leader>cm", "<cmd>Telescope git_commits use_file_path=true <CR>", { desc = "telescope git commits" })
 
-map("n", "<leader>fI", function() lga_shortcuts.grep_word_under_cursor({postfix = ' -F --no-ignore'}) end,
-  { desc = "telescope find all under cursor" })
-map("n", "<leader>fi", function() require("telescope.builtin").live_grep({prompt_title = 'Live Grep (All Files)', additional_args = {'--no-ignore'}}) end,
-  { desc = "telescope find all" })
+  map("n", "<leader>f<CR>", "<cmd> Telescope resume <CR>", { desc = 'telescope resume previous'})
+  map("n", "<leader>fa", "<cmd> Telescope ast_grep <CR>", { desc = "telescope live AST grep" })
+  map("n", "<leader>fd", "<cmd>Telescope lsp_document_symbols <CR>", { desc = "telescope find methods" })
+  map("n", "<leader>fD", function() require("telescope.builtin").live_grep({prompt_title = 'Search Dependencies', additional_args = {'-g=**__manifest__.py'}}) end, { desc = "telescope find dependencies" })
+  map("n", "<leader>fe", "<cmd> Telescope file_browser path=%:p:h select_buffer=true <CR>", { desc = "telescope file browser" })
+  map("n", "<leader>fF", function() require("telescope.builtin").find_files({prompt_title = 'Find Files (All Files)', no_ignore=true}) end, { desc = "telescope find files (no ignore)" })
+  map("n", "<leader>fi", function() require("telescope.builtin").live_grep({prompt_title = 'Live Grep (All Files)', additional_args = {'--no-ignore'}}) end, { desc = "telescope find all" })
+  map("n", "<leader>fI", function() lga_shortcuts.grep_word_under_cursor({postfix = ' -F --no-ignore'}) end, { desc = "telescope find all under cursor" })
+  map("n", "<leader>fm", "<cmd>Telescope live_grep default_text=^\\s+(_name|_inherit).+=.+ <CR>", { desc = "telescope find models" })
+  map("n", "<leader>fM", "<cmd>Telescope live_grep default_text=^\\s+_name.+=.+ <CR>", { desc = "telescope find models" })
+  map("n", "<leader>fr", "<cmd> Telescope lsp_references <CR>", { desc = "telescope list references" })
+  map("n", "<leader>fs", lga_shortcuts.grep_word_under_cursor, { desc = "telescope find under cursor" })
+  map("v", "<leader>fs", lga_shortcuts.grep_visual_selection, { desc = "telescope find under cursor" })
+  map("n", "<leader>fv", "<cmd>Telescope live_grep default_text=name=.model.> <CR>", { desc = "telescope find view by model" })
 
-map("n", "<leader>fD", function() require("telescope.builtin").live_grep({prompt_title = 'Search Dependencies', additional_args = {'-g=**__manifest__.py'}}) end,
-  { desc = "telescope find dependencies" })
+  map("n", "<leader>gt", "<cmd> Telescope git_status use_file_path=true <CR>", { desc = "telescope git status" })map("n", "<leader>fe", "<cmd> Telescope file_browser path=%:p:h select_buffer=true <CR>", { desc = "telescope file browser" })
+else
+  local Snacks = require('snacks');
+  map("n", "<leader>cm", function() Snacks.picker.git_log({cwd=vim.fn.expand('%:p:h')}) end, { desc = "telescope git commits" })
 
-map("n", "<leader>fm", "<cmd>Telescope live_grep default_text=^\\s+(_name|_inherit).+=.+ <CR>", { desc = "telescope find models" })
-map("n", "<leader>fM", "<cmd>Telescope live_grep default_text=^\\s+_name.+=.+ <CR>", { desc = "telescope find models" })
-map("n", "<leader>fv", "<cmd>Telescope live_grep default_text=name=.model.> <CR>", { desc = "telescope find view by model" })
-map("n", "<leader>fd", "<cmd>Telescope lsp_document_symbols <CR>", { desc = "telescope find methods" })
-map("n", "<leader>cm", "<cmd>Telescope git_commits use_file_path=true <CR>", { desc = "telescope git commits" })
-map("n", "<leader>gt", "<cmd> Telescope git_status use_file_path=true <CR>", { desc = "telescope git status" })
-map("n", "<leader>fr", "<cmd> Telescope lsp_references <CR>", { desc = "telescope list references" })
-map("n", "<leader>f<CR>", "<cmd> Telescope resume <CR>", { desc = 'telescope resume previous '})
+  map("n", "<leader>f<CR>", Snacks.picker.resume, { desc = 'telescope resume previous'})
+  map("n", "<leader>fb", Snacks.picker.buffers, { desc = "telescope find buffers" })
+  map("n", "<leader>fd", Snacks.picker.lsp_symbols, { desc = "telescope find methods" })
+  map("n", "<leader>fD", function() Snacks.picker.grep({title="Search Dependencies", glob="**__manifest__.py"}) end, { desc = "telescope find dependencies" })
+  map("n", "<leader>fe", function() Snacks.picker.explorer({layout = {preset = 'default', preview=true}, cwd=vim.fn.expand('%:p:h'), auto_close=true}) end, { desc = "telescope file browser" })
+  map("n", "<leader>ff", Snacks.picker.files, { desc = "telescope find files" })
+  map("n", "<leader>fF", function() Snacks.picker.files({ hidden = true, ignored = true }) end, { desc = "telescope find files (no ignore)" })
+  map("n", "<leader>fh", Snacks.picker.help, { desc = "telescope help page" })
+  map("n", "<leader>fi", function() Snacks.picker.grep({title = "Live Grep (All Files)", hidden = true, ignored = true }) end, { desc = "telescope grep all" })
+  map("n", "<leader>fI", function() Snacks.picker.grep_word({title = "Live Grep (All Files)", hidden = true, ignored = true }) end, { desc = "telescope grep all under cursor" })
+  map("n", "<leader>fm", function() Snacks.picker.grep({title="Search Models and Inherited", search="^\\s+(_name|_inherit).+=.+"}) end, { desc = "telescope find models" })
+  map("n", "<leader>fM", function() Snacks.picker.grep({title="Search Base Models", search="^\\s+_name.+=.+"}) end, { desc = "telescope find models" })
+  map("n", "<leader>fo", Snacks.picker.recent, { desc = "telescope find oldfiles" })
+  map("n", "<leader>fr", Snacks.picker.lsp_references, { desc = "telescope list references" })
+  map("n", "<leader>fs", Snacks.picker.grep_word, { desc = "telescope grep under cursor" })
+  map("v", "<leader>fs", function() Snacks.picker.grep_word({ mode = "v" }) end, { desc = "telescope grep visual selection" })
+  map("n", "<leader>fv", function() Snacks.picker.grep({title="Search Models in Views", search="name=.model.>"}) end, { desc = "telescope find view by model" })
+  map("n", "<leader>fw", Snacks.picker.grep, { desc = "telescope live grep" })
+  map("n", "<leader>fz", Snacks.picker.lines, { desc = "telescope find in current buffer" })
+  map("n", "<leader>ma", Snacks.picker.marks, { desc = "telescope find marks" })
 
+  map("n", "<leader>gt", function() Snacks.picker.git_status({layout = {preset = 'default'}, cwd=vim.fn.expand('%:p:h')}) end, { desc = "telescope git status" })
+end
 -- gitsigns
 map("n", "<leader>rh", "<cmd> Gitsigns reset_hunk <CR>", { desc = "git reset hunk"})
 map("n", "<leader>ph", "<cmd> Gitsigns preview_hunk <CR>", { desc = "git preview hunk"})

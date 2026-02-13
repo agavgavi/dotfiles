@@ -68,7 +68,7 @@ alias rgrep='rgrep --color=auto'
 
 # Old Bash Exports:
 export PYTHONPATH=~/Dev/odoo/src/odoo:~/Dev/odoo/src/enterprise
-[[ "$TERM_PROGRAM" == "vscode" ]] && . "$(code --locate-shell-integration-path zsh)"
+[[ "$TERM_PROGRAM" == "vscode" ]] && . "$(codium --locate-shell-integration-path zsh)"
 
 # source ~/Dev/odoo/support/support-tools/scripts/completion/oe-support-completion.sh
 # complete -o default -F _oe-support oe-support
@@ -106,6 +106,7 @@ eval "$(pyenv init -)"
 export NVM_DIR="$([ -z "${XDG_CONFIG_HOME-}" ] && printf %s "${HOME}/.nvm" || printf %s "${XDG_CONFIG_HOME}/nvm")"
 [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh" # This loads nvm
 
+export GEMINI_API_KEY="AIzaSyAQU86A0c_Qf3RA-SyH0u1VWYYZuCNqw2c"
 # pnpm
 export PNPM_HOME="/home/andg/.local/share/pnpm"
 case ":$PATH:" in

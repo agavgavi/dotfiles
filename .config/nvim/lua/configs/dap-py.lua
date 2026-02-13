@@ -10,8 +10,8 @@ local py_configs = dap.configurations.python or {}
 dap.configurations.python = py_configs
 local xml_configs = dap.configurations.xml or {}
 dap.configurations.xml = xml_configs
-local js_configs = dap.configurations.js or {}
-dap.configurations.js = js_configs
+local js_configs = dap.configurations.javascript or {}
+dap.configurations.javascript = js_configs
 
 local function get_database_tables()
   local handle = io.popen("python3 ~/Dev/support/scripts/configs/getDBS.py")
@@ -33,10 +33,11 @@ local function get_name(database)
   local filter = string.format("-does_%s", name);
   return {filter}
   -- return {filter, '--log-sql'};
-  -- return {filter, '--test-tags=.test_06_failed_edi_ran_as_cron', '--stop-after-init'};
 end;
 
-local function get_args_bin()
+local function get_args_bin(postfix)
+  postfix = postfix or ""
+  local prompt = string.format("Select a Database%s",postfix)
   return coroutine.create(function(dap_run_co)
     local items = get_database_tables()
     if items == nil then
@@ -44,7 +45,7 @@ local function get_args_bin()
     elseif #items == 1 then
       coroutine.resume(dap_run_co, get_name(items[1]))
     else
-      vim.ui.select(items, { prompt = "Select a Database:", label = 'Select Datatabse: ' }, function(choice)
+      vim.ui.select(items, { prompt = prompt, label = 'Select Database: ' }, function(choice)
         if choice == nil then
           coroutine.resume(dap_run_co, dap.ABORT)
         else
@@ -52,6 +53,21 @@ local function get_args_bin()
         end
       end)
     end
+  end)
+end;
+
+local function get_args_iap()
+  return coroutine.create(function(dap_run_co)
+    local intermediate_co = coroutine.create(function(args)
+      if args == dap.ABORT then
+        coroutine.resume(dap_run_co, dap.ABORT)
+      else
+        coroutine.resume(dap_run_co, {args[1], '-c/home/andg/.odoorc-iap'})
+      end
+    end)
+
+    local bin_co = get_args_bin(" (IAP)")
+    coroutine.resume(bin_co, intermediate_co)
   end)
 end;
 
@@ -66,14 +82,22 @@ local odoo_config = {
   console = 'integratedTerminal'
 };
 
--- table.insert(py_configs, {
---   type = 'python',
---   request = 'launch',
---   name = 'My custom launch configuration',
---   program = '${file}',
---   console = 'integratedTerminal'
---   -- ... more options, see https://github.com/microsoft/debugpy/wiki/Debug-configuration-settings
--- })
-table.insert(py_configs, odoo_config)
-table.insert(xml_configs, odoo_config)
-table.insert(js_configs, odoo_config)
+local iap_config = {
+  type = 'python',
+  justmycode = false,
+  request = 'launch',
+  name = 'Launch Odoo IAP',
+  args = get_args_iap,
+  program = '/home/andg/Dev/src/iap/odoo-18.0/odoo-bin',
+  pythonPath = path,
+  console = 'integratedTerminal'
+};
+
+local workspace_config = odoo_config
+if vim.fn.getcwd():match("iap") then
+  workspace_config = iap_config
+end
+
+for _, value in ipairs({py_configs, xml_configs, js_configs}) do
+  table.insert(value, workspace_config)
+end

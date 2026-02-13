@@ -4,6 +4,7 @@ require "nvchad.options"
 
 -- local o = vim.o
 -- o.cursorlineopt ='both' -- to enable cursorline!
+-- TREESITTER Indenting
 
 -- FOLD INFORMATION
 vim.o.foldenable = false
@@ -11,6 +12,7 @@ vim.o.foldenable = false
 vim.g.disable_rainbow_hover = 1
 vim.g.disable_rainbow_statusline = 1
 
+vim.o.autoread = true
 -- No wrap and color column
 vim.wo.wrap = false
 vim.o.timeout = true

@@ -21,13 +21,13 @@ dv.setup(
       -- Must be one of the sections declared above
       default_section = "console",
       base_sections = {
-        breakpoints = { label = "[B] ",},
-        scopes = { label = "[S] 󰂥",},
-        exceptions = { label = "[E] 󰢃",},
-        watches = { label = "[W] 󰛐",},
-        threads = { label = "[T] 󱉯",},
-        repl = { label = "[R] 󰯃",},
-        console = { label = "[C] 󰆍",},
+        breakpoints = { label = "",},
+        scopes = { label = "󰂥",},
+        exceptions = { label = "󰢃",},
+        watches = { label = "󰛐",},
+        threads = { label = "󱉯",},
+        repl = { label = "󰯃",},
+        console = { label = "󰆍",},
       },
     },
     switchbuf = "uselast,useopen",
@@ -35,16 +35,10 @@ dv.setup(
 )
 
 dap.listeners.before.attach["dap-view-config"] = function()
-  if require('snacks').picker.get({ source = "explorer" })[1] ~= nil then
-    require('snacks').picker.get({ source = "explorer" })[1]:close()
-  end
   dv.open()
 end
 
 dap.listeners.before.launch["dap-view-config"] = function()
-  if require('snacks').picker.get({ source = "explorer" })[1] ~= nil then
-    require('snacks').picker.get({ source = "explorer" })[1]:close()
-  end
   dv.open()
 end
 

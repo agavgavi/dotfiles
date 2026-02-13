@@ -25,7 +25,37 @@ local plugins = {
   {
     "Shatur/neovim-session-manager",
     lazy = false,
+    enabled=false,
     dependencies = "nvim-lua/plenary.nvim",
+  },
+  {
+    "marcinjahn/gemini-cli.nvim",
+    cmd = "Gemini",
+    -- Example key mappings for common actions:
+    keys = {
+      { "<leader>a/", "<cmd>Gemini toggle<cr>", desc = "Toggle Gemini CLI" },
+      { "<leader>aa", "<cmd>Gemini ask<cr>", desc = "Ask Gemini", mode = { "n", "v" } },
+      { "<leader>af", "<cmd>Gemini add_file<cr>", desc = "Add File" },
+
+    },
+    dependencies = {
+      "folke/snacks.nvim",
+    },
+    opts = {
+      -- Command line arguments passed to gemini-cli
+      args = {
+
+      },
+      -- Automatically reload buffers changed by GeminiCLI (requires vim.o.autoread = true)
+      auto_reload = true,
+    },
+  },
+  {
+    "folke/persistence.nvim",
+    event = "BufReadPre", -- this will only start session saving when an actual file was opened
+    opts = {
+      -- add any custom options here
+    }
   },
   {
     "rhysd/conflict-marker.vim",
@@ -68,7 +98,13 @@ local plugins = {
         "igorlfs/nvim-dap-view",
         config = function(_, opts)
             require("configs.dap-view")
-        end
+        end,
+        enabled = true,
+      },
+      {
+        "rcarriga/nvim-dap-ui",
+        dependencies = {"mfussenegger/nvim-dap", "nvim-neotest/nvim-nio"},
+        enabled = false,
       }
     },
     ft = "python",
@@ -162,11 +198,21 @@ local plugins = {
         "bash",
         "markdown",
       },
+      incremental_selection = {
+        enable = true,
+        keymaps = {
+          init_selection = "<A-k>",
+          node_incremental = "<A-k>",
+          scope_incremental = "<A-K>",
+          node_decremental = "<A-l>",
+        },
+      },
     },
   },
-  { "nvim-telescope/telescope-fzf-native.nvim", build = "make" },
+  { "nvim-telescope/telescope-fzf-native.nvim", build = "make" , enabled = false},
   {
     "nvim-telescope/telescope.nvim",
+    enabled = false,
     dependencies = {
       {
         "nvim-telescope/telescope-live-grep-args.nvim",
@@ -177,9 +223,12 @@ local plugins = {
       {
         "nvim-telescope/telescope-file-browser.nvim",
       },
+      {
+        'Marskey/telescope-sg',
+      },
     },
     opts = {
-      extensions_list = { "themes", "terms", "live_grep_args", "fzf" },
+      extensions_list = { "themes", "terms", "live_grep_args", "fzf", "ast_grep"},
       extensions = {
         fzf = {
           fuzzy = true, -- false will only do exact matching
@@ -188,6 +237,14 @@ local plugins = {
           case_mode = "smart_case", -- or "ignore_case" or "respect_case"
           -- the default case_mode is "smart_case"
         },
+        ast_grep = {
+            command = {
+                "ast-grep", -- For Linux, use `ast-grep` instead of `sg`
+                "--json=stream",
+            }, -- must have --json=stream
+            grep_open_files = false, -- search in opened files
+            lang = nil, -- string value, specify language for ast-grep `nil` for default
+        }
       },
     },
   },
@@ -210,7 +267,38 @@ local plugins = {
     "folke/snacks.nvim",
     lazy = false,
     opts = {
-      picker = { enabled = true }
+      dashboard = {
+        enabled = true,
+        sections = {
+          { section = "header" },
+          { section = "keys", gap = 1, padding = 1 },
+          { pane = 2, icon = " ",key="s", title = "Recent Files", action = "<leader>rS", padding = 1, hidden=1},
+          { section = "startup" },
+        },
+      },
+      picker = {
+        enabled = true,
+        win = {
+          preview = {
+            keys = {
+              ["<PageUp>"] = { "preview_scroll_up", mode = { "n", "i" } },
+              ["<PageDown>"] = { "preview_scroll_down", mode = { "n", "i" } },
+            },
+          },
+          list = {
+            keys = {
+              ["<PageUp>"] = { "list_scroll_up", mode = { "n", "i" } },
+              ["<PageDown>"] = { "list_scroll_down", mode = { "n", "i" } },
+            },
+          },
+          input = {
+            keys = {
+              ["<PageUp>"] = { "list_scroll_up", mode = { "n", "i" } },
+              ["<PageDown>"] = { "list_scroll_down", mode = { "n", "i" } },
+            },
+          },
+        },
+      }
     }
   },
   { import = "nvchad.blink.lazyspec" },
