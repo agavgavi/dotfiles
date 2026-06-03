@@ -23,7 +23,7 @@ alias vimdiff='vim -d'
 # Function to download a runbot database and restore it.
 function orunbot() {
   zipname=$(basename "$1")
-  dbname=${zipname%.*}
+  dbname=oes_${zipname%.*}
   echo $dbname
   mkdir /tmp/restore-$dbname
   echo "### downloading"
@@ -111,59 +111,88 @@ function otest() {
 
   cd ~/Dev/src/
   echo "odoo-bin -d oes_$DB_NAME --test-tags $OTHERS --stop-after-init"
-  odoo-bin -d oes_$DB_NAME --test-tags $OTHERS --stop-after-init;
+  odoo-bin -d oes_$DB_NAME --test-tags "$OTHERS" --stop-after-init;
   cd $cwd
 }
 
-# Update all folders
+# Update all folders (pulls run in parallel; -s = silent on success)
 function oupdate() {
-    ODOO_PATH=~/Dev/src
-    # Store cwd so we can cd back to it after it's done
-    cwd=$(pwd)
+    setopt local_options no_notify no_monitor
     set -o shwordsplit
-    FLAG=${1:-""}
-    if [[ ${2:-""} != "-s" && "$FLAG" != "-s" ]]; then PIPE_PATH="/dev/stdout"; else PIPE_PATH="errorOut"; fi
-    # Go to where all of src code is stored
-    cd $ODOO_PATH
-    ODOO_FOLDERS="enterprise odoo internal upgrade upgrade-util ../support/support-tools ../odoo-stubs"
+    local ODOO_PATH=~/Dev/src
+    local cwd=$(pwd)
+    local FLAG=${1:-""}
+    local ODOO_FOLDERS="enterprise odoo internal upgrade upgrade-util"
 
+    local tmpdir
+    tmpdir=$(mktemp -d)
+
+    # Pull all folders in parallel - git pull already fetches, no need for separate fetch
     for folder in $ODOO_FOLDERS; do
-        cd $folder
-        echo -e "${GREEN}Updating $folder...${NC}"
-        git fetch
-        git pull > $PIPE_PATH 2>&1
-        response=$?
-
-        if [[ $response != 0 && "$FLAG" == "-s" ]] ; then
-            echo -e "${RED}Git pull failed: error code $response.${NC}"
-            cat $PIPE_PATH
-        fi
-
-        if [[ "$PIPE_PATH" != "/dev/stdout" ]]; then
-            rm $PIPE_PATH
-        fi
-        echo -e "${YELLOW}Finished updating $folder...${NC}"
-
-        cd ..
+        echo -e "${GREEN}Updating ${YELLOW}$folder${NC}${GREEN}...${NC}"
+        (
+            cd $ODOO_PATH/$folder
+            git pull --ff-only > "$tmpdir/$folder.log" 2>&1
+            echo $? > "$tmpdir/$folder.rc"
+        ) &
     done
+    wait
+
+    # Print results in deterministic order
+    for folder in $ODOO_FOLDERS; do
+        local rc=$(command cat "$tmpdir/$folder.rc")
+        if [[ "$rc" != "0" ]]; then
+            echo -e "${RED}FAILED: $folder (exit $rc)${NC}"
+            command cat "$tmpdir/$folder.log"
+        elif [[ "$FLAG" != "-s" ]]; then
+            echo -e "${GREEN}Updated $folder${NC}"
+            command cat "$tmpdir/$folder.log"
+        else
+            echo -e "${GREEN}Updated $folder${NC}"
+        fi
+    done
+
+    rm -rf "$tmpdir"
     cd $cwd
 }
 
-# Rebase base branch onto feature branch
+# Rebase current branch onto a base version, replaying only your commits.
+# Usage: orebase <new-base> [<old-base>]
+#   <new-base>   The branch to rebase onto (e.g. master, 19.0).
+#   <old-base>   The original base of the feature branch. If omitted, inferred
+#                from the branch-name prefix (e.g. master-foo-andg -> master).
+# Examples:
+#   orebase master                 # catch up: same-base rebase
+#   orebase 19.0                   # move feature branch from master to 19.0
+#   orebase 19.0 17.0              # explicit override when inference is wrong
 function orebase() {
-  VERSION=${1:-""}
-  cwd=$(pwd)
-  CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD)
+  setopt local_options rematchpcre
 
-  if [[ "$VERSION" == "" ]] ; then
+  local NEW_BASE="${1:-}"
+  local OLD_BASE="${2:-}"
+
+  if [[ -z "$NEW_BASE" ]]; then
     echo "ERROR: MUST SPECIFY VERSION"
     return 1
   fi
 
-  git checkout $VERSION
-  git pull
-  git checkout $CURRENT_BRANCH
-  git rebase $VERSION
+  local CURRENT_BRANCH
+  CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD)
+
+  if [[ -z "$OLD_BASE" ]]; then
+    if [[ "$CURRENT_BRANCH" =~ '^(master|saas-\d+\.\d+|\d+\.\d+)-' ]]; then
+      OLD_BASE="${match[1]}"
+    else
+      echo -e "${RED}ERROR: cannot infer old base from branch '$CURRENT_BRANCH'${NC}"
+      echo "Pass it explicitly: orebase <new-base> <old-base>"
+      return 1
+    fi
+  fi
+
+  echo -e "${GREEN}Rebasing ${YELLOW}$CURRENT_BRANCH${NC}${GREEN} from ${BLUE}$OLD_BASE${NC}${GREEN} onto ${BLUE}$NEW_BASE${NC}${GREEN}...${NC}"
+
+  git fetch origin "$NEW_BASE" "$OLD_BASE" || return $?
+  git rebase --onto "origin/$NEW_BASE" "origin/$OLD_BASE" "$CURRENT_BRANCH"
 }
 
 # Search for a commit modifying some code with specific tags
@@ -180,25 +209,24 @@ function ogit() {
 }
 
 # Swap all folders to the required version. Can pass a default as necessary
-# if the folder doesn't exist on the repo
+# if the folder doesn't exist on the repo. Folders are processed in parallel.
 function oswitch() {
-  set -o shwordsplit
-  set -o rematchpcre
+  setopt local_options no_notify no_monitor shwordsplit rematchpcre
 
-  ODOO_PATH=~/Dev/src
-  VERSION=""
-  DEFAULT=""
-  ODOO_FOLDERS="odoo enterprise"
+  local ODOO_PATH=~/Dev/src
+  local VERSION=""
+  local DEFAULT=""
+  local ODOO_FOLDERS="odoo enterprise"
   # Function to display usage
   usage() {
-    echo "Usage: $0 <target_branch> [-f|--fallback <fallback_branch>]"
+    echo "Usage: oswitch <target_branch> [-f|--fallback <fallback_branch>]"
     echo "  <target_branch>           Branch to switch to (required)"
     echo "  -f, --fallback BRANCH     Fallback branch if target doesn't exist (optional)"
     return 1
   }
 
   # Parse arguments
-  POSITIONAL_ARGS=()
+  local POSITIONAL_ARGS=()
 
   while [[ $# -gt 0 ]]; do
     case $1 in
@@ -208,10 +236,12 @@ function oswitch() {
         ;;
       -h|--help)
         usage
+        return 0
         ;;
       -*|--*)
         echo "Unknown option $1"
         usage
+        return 1
         ;;
       *)
         POSITIONAL_ARGS+=("$1")
@@ -229,34 +259,43 @@ function oswitch() {
   else
     echo "Error: Target branch is required"
     usage
+    return 1
   fi
 
-  cwd=$(pwd)
-  cd $ODOO_PATH
+  local cwd=$(pwd)
+  local tmpdir
+  tmpdir=$(mktemp -d)
+
+  # Switch folders in parallel - fetch + checkout are independent per folder
+  for fold in $ODOO_FOLDERS; do
+    echo -e "${GREEN}Swapping ${YELLOW}$fold${NC}${GREEN} to ${BLUE}$VERSION${NC}${GREEN}...${NC}"
+    (
+      cd $ODOO_PATH/$fold
+      {
+        git fetch > /dev/null 2>&1
+        if git show-ref --quiet refs/heads/$VERSION; then
+          git checkout $VERSION
+        elif [[ $DEFAULT ]]; then
+          echo -e "${RED}Can't find ${YELLOW}$VERSION${NC}${RED} branch, using default ${GREEN}$DEFAULT${NC}"
+          git checkout $DEFAULT
+        else
+          [[ $VERSION =~ '^(master|(saas-)?\d+.\d+)' ]]
+          local head=$match[1]
+          echo -e "${RED}Can't find ${YELLOW}$VERSION${NC}${RED} branch, trying ${GREEN}$head${NC}"
+          if git show-ref --quiet refs/heads/$head; then
+            git checkout $head
+          fi
+        fi
+      } > "$tmpdir/$fold.log" 2>&1
+    ) &
+  done
+  wait
 
   for fold in $ODOO_FOLDERS; do
-    cd $fold
-    echo -e "${GREEN}Swapping ${YELLOW}$fold${NC}${GREEN} to ${BLUE}$VERSION${NC}${GREEN}...${NC}"
-    git fetch >> /dev/null
-    # Checkout specific branch if it exists on repo
-    if git show-ref --quiet refs/heads/$VERSION; then
-      git checkout $VERSION
-    # Otherwise checkout default
-    elif [[ $DEFAULT ]]; then
-      echo -e "${RED}Can't find ${YELLOW}$VERSION${NC}${RED} branch, using default ${GREEN}$DEFAULT${NC}"
-      git checkout $DEFAULT
-    # Otherwise try to guess based on branch name
-    else
-      [[ $VERSION =~ '^(master|(saas-)?\d+.\d+)' ]]
-      head=$match[1]
-      echo -e "${RED}Can't find ${YELLOW}$VERSION${NC}${RED} branch, trying ${GREEN}$head${NC}"
-      if git show-ref --quiet refs/heads/$head; then
-        git checkout $head
-      fi
-    fi
-    cd $ODOO_PATH
+    command cat "$tmpdir/$fold.log"
   done
 
+  rm -rf "$tmpdir"
   cd $cwd
 }
 
@@ -314,4 +353,49 @@ olist() {
     output+="${BOLD}╰──────────────────────────────────────────┴──────────────────────╯${NC}"
 
     print -r "$output"
+}
+
+# Reinstall pydevd_plugin_odoo.py into a pyenv's debugpy vendored extensions
+# (debugpy upgrades clobber it). Usage: oinstall-pydevd <pyenv-name>
+oinstall-pydevd() {
+  local env_name="${1:-odoo}"
+  local src="$HOME/dotfiles/.config/nvim/scripts/pydevd_plugin_odoo.py"
+  local env_root="$HOME/.pyenv/versions/$env_name"
+  if [[ ! -f "$src" ]]; then
+    echo "source plugin not found: $src" >&2
+    return 1
+  fi
+  if [[ ! -d "$env_root" ]]; then
+    echo "pyenv not found: $env_root" >&2
+    return 1
+  fi
+  local dest_dir
+  dest_dir=$(find "$env_root/lib" -maxdepth 8 -type d \
+    -path '*/debugpy/_vendored/pydevd/pydevd_plugins/extensions' 2>/dev/null | head -1)
+  if [[ -z "$dest_dir" ]]; then
+    echo "debugpy vendored extensions dir not found in $env_root" >&2
+    return 1
+  fi
+  cp "$src" "$dest_dir/" && echo "installed pydevd_plugin_odoo.py -> $dest_dir"
+}
+
+# ast-grep: always use global config for custom languages (e.g. XML)
+export AST_GREP_CONFIG=/home/andg/.config/ast-grep/sgconfig.yml
+ast-grep() {
+  local cfg="$AST_GREP_CONFIG"
+  [[ -z "$cfg" || ! -f "$cfg" ]] && { command ast-grep "$@"; return; }
+  local subcmd=""
+  local args=()
+  for arg in "$@"; do
+    if [[ -z "$subcmd" && "$arg" =~ ^(run|scan|test|lsp|new)$ ]]; then
+      subcmd="$arg"
+    fi
+    args+=("$arg")
+  done
+  # If no explicit subcommand, inject 'run' so we can pass -c
+  if [[ -z "$subcmd" ]]; then
+    command ast-grep run -c "$cfg" "$@"
+  else
+    command ast-grep "${args[1]}" -c "$cfg" "${args[@]:1}"
+  fi
 }

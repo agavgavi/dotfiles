@@ -83,7 +83,9 @@ alias more=bat
 alias vim=nvim
 
 [ -f ~/.fzf.zsh ] && source ~/.fzf.zsh
-eval "$(zoxide init --cmd cd zsh)"
+if [[ "$CLAUDECODE" != "1" ]]; then
+    eval "$(zoxide init --cmd cd zsh)"
+fi
 
 alias ls='eza --icons'
 alias ll='eza -l --icons'
@@ -115,7 +117,7 @@ case ":$PATH:" in
 esac
 # pnpm end
 #
-if command -v tmux &> /dev/null && [ -n "$PS1" ] && [[ ! "$TERM" =~ screen ]] && [[ ! "$TERM" =~ tmux ]] && [ -z "$TMUX" ]; then
+if command -v tmux &> /dev/null && [ -n "$PS1" ] && [[ ! "$TERM" =~ screen ]] && [[ ! "$TERM" =~ tmux ]] && [ -z "$TMUX" ] && [[ "$TERM_PROGRAM" != "vscode" ]]; then
 
   exec tmux new -As0
 fi
