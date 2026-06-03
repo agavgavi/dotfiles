@@ -1,7 +1,6 @@
 local dap = require("dap")
 local dv = require("dap-view")
 
-require('base46').get_integration("dap")
 dofile(vim.g.base46_cache .. "dap")
 
 vim.fn.sign_define('DapBreakpoint', {text='', texthl='DapBreakpoint', linehl='', numhl='DapBreakpoint'})

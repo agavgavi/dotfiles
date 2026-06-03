@@ -1,21 +1,5 @@
 local M = {}
 
--- Recursive dump helper
-function M.dump(o)
-  if type(o) == "table" then
-    local left = "{ "
-    for k, v in pairs(o) do
-      if type(k) ~= "number" then
-        k = '"' .. k .. '"'
-      end
-      left = left .. "[" .. k .. "] = " .. M.dump(v) .. ","
-    end
-    return left .. "} "
-  else
-    return tostring(o)
-  end
-end
-
 -- Open current file/line in GitHub
 function M.open_in_github(blame)
   blame = blame or false
@@ -58,7 +42,7 @@ function M.open_in_github(blame)
   local url_page = blame and "/blame/" or "/blob/"
   local github_url = string.format("%s%s%s/%s#L%d", repo_url, url_page, branch_name, relative_path, line_num)
 
-  vim.fn.system("open " .. vim.fn.shellescape(github_url))
+  vim.ui.open(github_url)
   vim.fn.chdir(original_cwd)
   print("Opened GitHub: " .. github_url)
 end

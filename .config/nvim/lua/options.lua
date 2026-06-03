@@ -23,10 +23,11 @@ vim.g.disable_rainbow_hover = 1
 vim.g.disable_rainbow_statusline = 1
 
 vim.o.autoread = true
+vim.o.updatetime = 250
 -- No wrap and color column
-vim.wo.wrap = false
+vim.o.wrap = false
 vim.o.timeout = true
-vim.o.timeoutlen = 0
+vim.o.timeoutlen = 300 -- which-key delay=0 keeps the popup instant
 vim.o.colorcolumn = "100"
 
 -- CONFLICT HIGHLIGHTER SETTINGS
@@ -34,9 +35,4 @@ vim.g.conflict_marker_highlight_group = ''
 vim.g.conflict_marker_begin = '^<<<<<<<\\+ .*$'
 vim.g.conflict_marker_common_ancestors = '^|||||||\\+ .*$'
 vim.g.conflict_marker_end   = '^>>>>>>>\\+ .*$'
-
-vim.api.nvim_set_hl(0, 'ConflictMarkerBegin', { bg = '#2f7366' })
-vim.api.nvim_set_hl(0, 'ConflictMarkerOurs', { bg = '#2e5049' })
-vim.api.nvim_set_hl(0, 'ConflictMarkerTheirs', { bg = '#344f69' })
-vim.api.nvim_set_hl(0, 'ConflictMarkerEnd', { bg = '#2f628e' })
-vim.api.nvim_set_hl(0, 'ConflictMarkerCommonAncestorsHunk', { bg = '#754a81' })
+-- highlight groups live in chadrc.lua (base46 hl_add) so they survive theme reloads

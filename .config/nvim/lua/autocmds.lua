@@ -1,10 +1,10 @@
--- Automatically remove newlines at the end of the file.
+-- Strip trailing whitespace on save.
 vim.api.nvim_create_autocmd({ "BufWritePre" }, {
   pattern = { "*" },
   callback = function()
-    local save_cursor = vim.fn.getpos(".")
-    pcall(function() vim.cmd [[%s/\s\+$//e]] end)
-    vim.fn.setpos(".", save_cursor)
+    local view = vim.fn.winsaveview()
+    pcall(function() vim.cmd [[keeppatterns %s/\s\+$//e]] end)
+    vim.fn.winrestview(view)
   end,
 })
 
@@ -52,11 +52,4 @@ vim.api.nvim_create_autocmd ("TermOpen",  {
           end
       end
 })
-
--- Recursive dump file
-function dump(o)
-  return require("utils").dump(o)
-end
-
-vim.o.updatetime = 250
 

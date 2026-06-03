@@ -4,7 +4,7 @@ return {
     sections = {
       { section = "header" },
       { section = "keys", gap = 1, padding = 1 },
-      { pane = 2, icon = " ", key = "s", title = "Recent Files", action = "<leader>rS", padding = 1, hidden = 1 },
+      { pane = 2, icon = " ", key = "s", title = "Restore Session", action = "<leader>rS", padding = 1, hidden = 1 },
       { section = "startup" },
     },
   },

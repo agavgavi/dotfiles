@@ -27,24 +27,29 @@ M.base46 = {
     SnacksPickerFile = { fg = 'white' },
     SnacksPickerMatch = { fg = 'cyan', bold = true },
     NvimDapViewVirtualText = { fg = 'light_grey' },
+    ConflictMarkerBegin = { bg = '#2f7366' },
+    ConflictMarkerOurs = { bg = '#2e5049' },
+    ConflictMarkerTheirs = { bg = '#344f69' },
+    ConflictMarkerEnd = { bg = '#2f628e' },
+    ConflictMarkerCommonAncestorsHunk = { bg = '#754a81' },
   },
   integrations = {
     "bufferline",
     "dap",
-    "lspsaga",
     "notify"
   },
 }
 M.mason = {
   pkgs = {
         "debugpy",
-        "pyright",
         "html-lsp",
-        "json-lsp",
+        "css-lsp",
         "eslint-lsp",
         "lemminx",
         "lua-language-server",
-        "ltex",
+        "vtsls",
+        "bash-language-server",
+        -- re-add "pyright" if use_odoo_lsp is flipped back on
   }
 }
 

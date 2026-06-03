@@ -1,7 +1,7 @@
 local use_odoo_lsp = false
 
--- Set the log level to info
-vim.lsp.log.set_level('info')
+-- Set the log level to info (enable when debugging LSP issues; default is 'warn')
+-- vim.lsp.log.set_level('info')
 local sev = vim.diagnostic.severity
 
 local signs = { [sev.ERROR] = "󰅙", [sev.WARN] = "", [sev.INFO] = "󰋼", [sev.HINT] = "󰌵" }

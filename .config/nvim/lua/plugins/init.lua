@@ -10,10 +10,7 @@ local plugins = {
     "folke/todo-comments.nvim",
     event='VeryLazy',
     dependencies = { "nvim-lua/plenary.nvim" },
-    config = function(opts)
-      require("todo-comments").setup {
-      }
-    end,
+    opts = {},
   },
   {
     "folke/noice.nvim",
@@ -22,10 +19,10 @@ local plugins = {
       "MunifTanjim/nui.nvim",
       "rcarriga/nvim-notify",
     },
-    config = function(opts)
+    config = function()
       require "configs.noice"
       require("notify").setup {
-        timeout = 50,
+        timeout = 3000,
       }
     end,
   },
@@ -91,11 +88,6 @@ local plugins = {
         end,
         enabled = true,
       },
-      {
-        "rcarriga/nvim-dap-ui",
-        dependencies = {"mfussenegger/nvim-dap", "nvim-neotest/nvim-nio"},
-        enabled = false,
-      }
     },
     ft = "python",
   },
@@ -113,11 +105,6 @@ local plugins = {
   {
     'Bekaboo/dropbar.nvim',
     lazy = false,
-    -- optional, but required for fuzzy finder support
-    dependencies = {
-      'nvim-telescope/telescope-fzf-native.nvim',
-      build = 'make'
-    },
     config = function()
       require "configs.dropbar"
     end
@@ -164,8 +151,6 @@ local plugins = {
   },
   {
     "folke/which-key.nvim",
-    keys = { "<leader>", "<c-r>", "<c-w>", '"', "'", "`", "c", "v", "g" },
-    cmd = "WhichKey",
     lazy = false,
     config = function()
       require "configs.whichkey"
