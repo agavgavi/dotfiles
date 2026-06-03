@@ -28,7 +28,7 @@ vim.api.nvim_create_autocmd({ "BufReadPost", "BufWinEnter" }, {
         ["models"] = true,
         ["controllers"] = true,
       }
-      if file ~= "__init__" and allowed_folders[folder] then
+      if file ~= "__init__" and allowed_folders[folder] and vim.fn.isdirectory(vim.fn.expand("%:p:h")) == 1 then
         local init_py = vim.fn.expand("%:p:h") .. "/__init__.py"
         local line = "from . import " .. file
         local do_write = true
@@ -55,21 +55,8 @@ vim.api.nvim_create_autocmd ("TermOpen",  {
 
 -- Recursive dump file
 function dump(o)
-   if type(o) == 'table' then
-      local left = '{ '
-      for k,v in pairs(o) do
-         if type(k) ~= 'number' then k = '"'..k..'"' end
-         left = left .. '['..k..'] = ' .. dump(v) .. ','
-      end
-      return left .. '} '
-   else
-      return tostring(o)
-   end
+  return require("utils").dump(o)
 end
 
 vim.o.updatetime = 250
-
-for _, v in ipairs(vim.fn.readdir(vim.g.base46_cache)) do
-   dofile(vim.g.base46_cache .. v)
- end
 

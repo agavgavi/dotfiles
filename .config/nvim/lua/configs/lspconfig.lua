@@ -77,13 +77,14 @@ local servers = {
     active = use_odoo_lsp,
     opts = {
       cmd = {'odoo-lsp'},
-      filetypes = {'javascript', 'xml', 'python'},
+      filetypes = {'javascript', 'xml', 'python', 'csv'},
       root_markers = '.odoo_lsp'
     }
   },
   odools = {
     active = not use_odoo_lsp,
     opts = {
+      -- cmd = { '/home/andg/Dev/archived/odoo-ls/server/target/release/odoo_ls_server'},
       cmd = {'odoo_ls_server'},
       root_dir = '/home/andg/.local/share/nvim/odoo',
       filetypes = {'python', 'csv', 'xml'},
@@ -125,6 +126,29 @@ local servers = {
       },
     },
   },
+  eslint = {
+    active = true,
+    opts = {
+      cmd = { vim.fn.stdpath('data') .. '/mason/bin/vscode-eslint-language-server', '--stdio' },
+      filetypes = { 'javascript', 'javascriptreact', 'typescript', 'typescriptreact' },
+      root_markers = { '.eslintrc.json', '.eslintrc.js', 'eslint.config.js', 'package.json', '.git' },
+      settings = {
+        useFlatConfig = false,
+        format = true,
+        validate = 'on',
+        run = 'onType',
+        workingDirectories = { mode = 'auto' },
+        onIgnoredFiles = 'warn',
+        options = {
+          ignore = false,
+          resolvePluginsRelativeTo = '.',
+          overrideConfig = {
+            extends = { 'plugin:diff/ci' },
+          },
+        },
+      },
+    },
+  },
   lemminx = {
     active = true,
     opts = {
@@ -144,6 +168,22 @@ local servers = {
     },
   },
 }
+
+local code_action_priority = { eslint = 1, ruff = 2, vtsls = 5 }
+local original_ui_select = vim.ui.select
+vim.ui.select = function(items, opts, on_choice)
+  if opts and opts.kind == 'codeaction' then
+    table.sort(items, function(a, b)
+      local an = a.ctx and a.ctx.client_id and vim.lsp.get_client_by_id(a.ctx.client_id)
+      local bn = b.ctx and b.ctx.client_id and vim.lsp.get_client_by_id(b.ctx.client_id)
+      local pa = code_action_priority[an and an.name] or 99
+      local pb = code_action_priority[bn and bn.name] or 99
+      if pa ~= pb then return pa < pb end
+      return (a.action.title or '') < (b.action.title or '')
+    end)
+  end
+  return original_ui_select(items, opts, on_choice)
+end
 
 for name, data in pairs(servers) do
   if data.active then

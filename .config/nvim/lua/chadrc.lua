@@ -26,6 +26,7 @@ M.base46 = {
     SnacksPickerDirIcon = { fg = 'blue' },
     SnacksPickerFile = { fg = 'white' },
     SnacksPickerMatch = { fg = 'cyan', bold = true },
+    NvimDapViewVirtualText = { fg = 'light_grey' },
   },
   integrations = {
     "bufferline",

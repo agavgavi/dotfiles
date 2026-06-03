@@ -5,6 +5,16 @@ require "nvchad.options"
 -- local o = vim.o
 -- o.cursorlineopt ='both' -- to enable cursorline!
 -- TREESITTER Indenting
+--
+-- Visible whitespace
+vim.o.list = true
+vim.opt.listchars = {
+  tab = '» ',
+  trail = '·',
+  nbsp = '␣',
+  extends = '→',
+  precedes = '←',
+}
 
 -- FOLD INFORMATION
 vim.o.foldenable = false

@@ -17,35 +17,38 @@ dv.setup(
     winbar = {
       show = true,
       -- You can add a "console" section to merge the terminal with the other views
-      sections = {"console", "breakpoints", "repl", "scopes", "watches", "exceptions", "threads", },
+      sections = {"console", "breakpoints", "repl", "scopes", "watches", "exceptions", "threads", "sessions" },
       -- Must be one of the sections declared above
       default_section = "console",
       base_sections = {
-        breakpoints = { label = "",},
-        scopes = { label = "󰂥",},
-        exceptions = { label = "󰢃",},
-        watches = { label = "󰛐",},
-        threads = { label = "󱉯",},
-        repl = { label = "󰯃",},
-        console = { label = "󰆍",},
+        breakpoints = { label = "",},
+        scopes = { label = "",},
+        exceptions = { label = "",},
+        watches = { label = "",},
+        threads = { label = "",},
+        repl = { label = "",},
+        sessions = { label = "",},
+        console = { label = "",},
       },
     },
     switchbuf = "uselast,useopen",
+    virtual_text = { enabled = true},
+    auto_toggle = true,
   }
 )
 
-dap.listeners.before.attach["dap-view-config"] = function()
-  dv.open()
-end
-
-dap.listeners.before.launch["dap-view-config"] = function()
-  dv.open()
-end
-
-dap.listeners.before.event_terminated["dap-view-config"] = function()
-  dv.close()
-end
-
-dap.listeners.before.event_exited["dap-view-config"] = function()
-  dv.close()
-end
+-- dap.listeners.before.attach["dap-view-config"] = function()
+--   dv.open()
+-- end
+--
+-- dap.listeners.before.launch["dap-view-config"] = function()
+--   dv.open()
+-- end
+--
+-- dap.listeners.before.event_terminated["dap-view-config"] = function()
+--   dv.close()
+-- end
+--
+-- dap.listeners.before.event_exited["dap-view-config"] = function()
+--   dv.close()
+-- end

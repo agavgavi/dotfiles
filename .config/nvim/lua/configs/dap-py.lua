@@ -13,6 +13,9 @@ dap.configurations.xml = xml_configs
 local js_configs = dap.configurations.javascript or {}
 dap.configurations.javascript = js_configs
 
+
+dap.defaults.fallback.exceptions_breakpoints = {}
+
 local function get_database_tables()
   local handle = io.popen("python3 ~/Dev/support/scripts/configs/getDBS.py")
   if handle == nil then return end
@@ -20,19 +23,37 @@ local function get_database_tables()
   local result = handle:read("*a")
   local lines = {}
 
+  -- getDBS.py outputs `label|value|description` (e.g. `envia|envia|(19.4)`)
+  -- shared with VSCode via the tasks-shell-input extension's fieldSeparator.
   for s in result:gmatch("[^\r\n]+") do
-    table.insert(lines, s)
+    local label, value, description = s:match("^([^|]+)|([^|]+)|(.+)$")
+    if label then
+      table.insert(lines, {
+        label = label,
+        value = value,
+        description = description,
+        text = label .. " " .. description,
+      })
+    else
+      table.insert(lines, { label = s, value = s, description = "", text = s })
+    end
   end
 
   handle:close()
   return lines
 end;
 
-local function get_name(database)
-  local name, _ = database:match"^(.+) (.+)";
-  local filter = string.format("-does_%s", name);
+local function get_name(item)
+  local filter = string.format("-does_%s", item.value);
   return {filter}
   -- return {filter, '--log-sql'};
+end;
+
+local function format_db_item(item)
+  if item.description ~= "" then
+    return string.format("%s %s", item.label, item.description)
+  end
+  return item.label
 end;
 
 local function get_args_bin(postfix)
@@ -42,17 +63,19 @@ local function get_args_bin(postfix)
     local items = get_database_tables()
     if items == nil then
       coroutine.close(dap_run_co)
-    elseif #items == 1 then
-      coroutine.resume(dap_run_co, get_name(items[1]))
-    else
-      vim.ui.select(items, { prompt = prompt, label = 'Select Database: ' }, function(choice)
-        if choice == nil then
-          coroutine.resume(dap_run_co, dap.ABORT)
-        else
-          coroutine.resume(dap_run_co, get_name(choice));
-        end
-      end)
+      return
     end
+    if #items == 1 then
+      coroutine.resume(dap_run_co, get_name(items[1]))
+      return
+    end
+    vim.ui.select(items, { prompt = prompt, format_item = format_db_item }, function(choice)
+      if choice == nil then
+        coroutine.resume(dap_run_co, dap.ABORT)
+      else
+        coroutine.resume(dap_run_co, get_name(choice))
+      end
+    end)
   end)
 end;
 
@@ -79,7 +102,7 @@ local odoo_config = {
   args = get_args_bin,
   program = '/home/andg/Dev/src/odoo/odoo-bin',
   pythonPath = path,
-  console = 'integratedTerminal'
+  console = 'integratedTerminal',
 };
 
 local iap_config = {
@@ -90,7 +113,7 @@ local iap_config = {
   args = get_args_iap,
   program = '/home/andg/Dev/src/iap/odoo-18.0/odoo-bin',
   pythonPath = path,
-  console = 'integratedTerminal'
+  console = 'integratedTerminal',
 };
 
 local workspace_config = odoo_config
