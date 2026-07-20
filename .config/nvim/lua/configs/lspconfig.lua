@@ -127,22 +127,6 @@ local servers = {
   },
 }
 
-local code_action_priority = { eslint = 1, ruff = 2 }
-local original_ui_select = vim.ui.select
-vim.ui.select = function(items, opts, on_choice)
-  if opts and opts.kind == 'codeaction' then
-    table.sort(items, function(a, b)
-      local an = a.ctx and a.ctx.client_id and vim.lsp.get_client_by_id(a.ctx.client_id)
-      local bn = b.ctx and b.ctx.client_id and vim.lsp.get_client_by_id(b.ctx.client_id)
-      local pa = code_action_priority[an and an.name] or 99
-      local pb = code_action_priority[bn and bn.name] or 99
-      if pa ~= pb then return pa < pb end
-      return (a.action.title or '') < (b.action.title or '')
-    end)
-  end
-  return original_ui_select(items, opts, on_choice)
-end
-
 vim.lsp.enable(plain)
 for name, opts in pairs(servers) do
   vim.lsp.config(name, opts)
