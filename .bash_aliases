@@ -406,3 +406,15 @@ ast-grep() {
 function omcp() {
   "$HOME/.claude/hooks/odoo-mcp-sync.sh" "oes_${1:?usage: omcp DB_NAME}"
 }
+
+# Install odoo_ls_server from a branch and sync the runtime typeshed clone to
+# the commit that branch pins (stubs must match what the server was tested with).
+# Usage: olsup [BRANCH]   (default alpha-1.5.0; e.g. olsup alpha, olsup alpha-1.6.0)
+function olsup() {
+  local branch=${1:-alpha-1.5.0}
+  cargo install --git https://github.com/odoo/odoo-ls --branch "$branch" odoo_ls_server || return
+  local pin=$(gh api "repos/odoo/odoo-ls/contents/server/typeshed?ref=$branch" -q .sha) || return
+  git -C ~/.local/share/nvim/odoo/typeshed fetch -q origin &&
+  git -C ~/.local/share/nvim/odoo/typeshed checkout -q "$pin" &&
+  echo "odoo_ls_server ($branch) installed, typeshed @ ${pin:0:9}"
+}
