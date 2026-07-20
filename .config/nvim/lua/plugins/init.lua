@@ -1,5 +1,12 @@
 local plugins = {
   {
+    -- local checkout; becomes a github slug once published. Eager: configs
+    -- .lspconfig enables 'odools' at startup, so the lsp/odools.lua spec must
+    -- already be on the runtimepath (ft-lazy would race the first attach).
+    dir = "~/Dev/odoo-ls.nvim",
+    lazy = false,
+  },
+  {
     "stevearc/conform.nvim",
     -- event = 'BufWritePre', -- uncomment for format on save
     config = function()
