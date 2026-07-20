@@ -285,6 +285,49 @@ function oswitch() {
   cd $cwd
 }
 
+# Reinstall pydevd_plugin_odoo.py into a pyenv's debugpy vendored extensions
+# (debugpy upgrades clobber it). Usage: oinstall-pydevd <pyenv-name>
+oinstall-pydevd() {
+  local env_name="${1:-odoo}"
+  local src="$HOME/dotfiles/.config/nvim/scripts/pydevd_plugin_odoo.py"
+  local env_root="$HOME/.pyenv/versions/$env_name"
+  if [[ ! -f "$src" ]]; then
+    echo "source plugin not found: $src" >&2
+    return 1
+  fi
+  if [[ ! -d "$env_root" ]]; then
+    echo "pyenv not found: $env_root" >&2
+    return 1
+  fi
+  local dest_dir
+  dest_dir=$(find "$env_root/lib" -maxdepth 8 -type d \
+    -path '*/debugpy/_vendored/pydevd/pydevd_plugins/extensions' 2>/dev/null | head -1)
+  if [[ -z "$dest_dir" ]]; then
+    echo "debugpy vendored extensions dir not found in $env_root" >&2
+    return 1
+  fi
+  cp "$src" "$dest_dir/" && echo "installed pydevd_plugin_odoo.py -> $dest_dir"
+}
+
+# Point Claude Code's `odoo` MCP entry at a local Odoo DB, minting a fresh mcp-scoped
+# API key (auto-rotating). Targets oes_DB_NAME, matching onew/otest.
+# Usage: omcp DB_NAME   then reconnect with /mcp in Claude Code (or restart).
+function omcp() {
+  "$HOME/.claude/hooks/odoo-mcp-sync.sh" "oes_${1:?usage: omcp DB_NAME}"
+}
+
+# Install odoo_ls_server from a branch and sync the runtime typeshed clone to
+# the commit that branch pins (stubs must match what the server was tested with).
+# Usage: olsup [BRANCH]   (default alpha-1.5.0; e.g. olsup alpha, olsup alpha-1.6.0)
+function olsup() {
+  local branch=${1:-alpha-1.5.0}
+  cargo install --git https://github.com/odoo/odoo-ls --branch "$branch" odoo_ls_server || return
+  local pin=$(gh api "repos/odoo/odoo-ls/contents/server/typeshed?ref=$branch" -q .sha) || return
+  git -C ~/.local/share/nvim/odoo/typeshed fetch -q origin &&
+  git -C ~/.local/share/nvim/odoo/typeshed checkout -q "$pin" &&
+  echo "odoo_ls_server ($branch) installed, typeshed @ ${pin:0:9}"
+}
+
 olist() {
     setopt local_options no_notify no_monitor
     local RESET=$'\033[0m'
@@ -339,47 +382,4 @@ olist() {
     output+="${BOLD}╰──────────────────────────────────────────┴──────────────────────╯${NC}"
 
     print -r "$output"
-}
-
-# Reinstall pydevd_plugin_odoo.py into a pyenv's debugpy vendored extensions
-# (debugpy upgrades clobber it). Usage: oinstall-pydevd <pyenv-name>
-oinstall-pydevd() {
-  local env_name="${1:-odoo}"
-  local src="$HOME/dotfiles/.config/nvim/scripts/pydevd_plugin_odoo.py"
-  local env_root="$HOME/.pyenv/versions/$env_name"
-  if [[ ! -f "$src" ]]; then
-    echo "source plugin not found: $src" >&2
-    return 1
-  fi
-  if [[ ! -d "$env_root" ]]; then
-    echo "pyenv not found: $env_root" >&2
-    return 1
-  fi
-  local dest_dir
-  dest_dir=$(find "$env_root/lib" -maxdepth 8 -type d \
-    -path '*/debugpy/_vendored/pydevd/pydevd_plugins/extensions' 2>/dev/null | head -1)
-  if [[ -z "$dest_dir" ]]; then
-    echo "debugpy vendored extensions dir not found in $env_root" >&2
-    return 1
-  fi
-  cp "$src" "$dest_dir/" && echo "installed pydevd_plugin_odoo.py -> $dest_dir"
-}
-
-# Point Claude Code's `odoo` MCP entry at a local Odoo DB, minting a fresh mcp-scoped
-# API key (auto-rotating). Targets oes_DB_NAME, matching onew/otest.
-# Usage: omcp DB_NAME   then reconnect with /mcp in Claude Code (or restart).
-function omcp() {
-  "$HOME/.claude/hooks/odoo-mcp-sync.sh" "oes_${1:?usage: omcp DB_NAME}"
-}
-
-# Install odoo_ls_server from a branch and sync the runtime typeshed clone to
-# the commit that branch pins (stubs must match what the server was tested with).
-# Usage: olsup [BRANCH]   (default alpha-1.5.0; e.g. olsup alpha, olsup alpha-1.6.0)
-function olsup() {
-  local branch=${1:-alpha-1.5.0}
-  cargo install --git https://github.com/odoo/odoo-ls --branch "$branch" odoo_ls_server || return
-  local pin=$(gh api "repos/odoo/odoo-ls/contents/server/typeshed?ref=$branch" -q .sha) || return
-  git -C ~/.local/share/nvim/odoo/typeshed fetch -q origin &&
-  git -C ~/.local/share/nvim/odoo/typeshed checkout -q "$pin" &&
-  echo "odoo_ls_server ($branch) installed, typeshed @ ${pin:0:9}"
 }
