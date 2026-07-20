@@ -23,6 +23,7 @@ return {
     "cpp",
     "bash",
     "markdown",
+    "sql",
   },
   incremental_selection = {
     enable = true,

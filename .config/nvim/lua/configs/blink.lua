@@ -22,14 +22,6 @@ return {
   },
   signature = { window = { border = 'rounded' } },
   sources = {
-    default = { "lsp", "snippets", "buffer", "path", "copilot" },
-    providers = {
-      copilot = {
-        name = "copilot",
-        module = "blink-copilot",
-        score_offset = 100,
-        async = true,
-      },
-    },
+    default = { "lsp", "snippets", "buffer", "path"},
   },
 }

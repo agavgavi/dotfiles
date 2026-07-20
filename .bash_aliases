@@ -399,3 +399,10 @@ ast-grep() {
     command ast-grep "${args[1]}" -c "$cfg" "${args[@]:1}"
   fi
 }
+
+# Point Claude Code's `odoo` MCP entry at a local Odoo DB, minting a fresh mcp-scoped
+# API key (auto-rotating). Targets oes_DB_NAME, matching onew/otest.
+# Usage: omcp DB_NAME   then reconnect with /mcp in Claude Code (or restart).
+function omcp() {
+  "$HOME/.claude/hooks/odoo-mcp-sync.sh" "oes_${1:?usage: omcp DB_NAME}"
+}

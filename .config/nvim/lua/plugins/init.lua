@@ -165,22 +165,8 @@ local plugins = {
   },
   { import = "nvchad.blink.lazyspec" },
   {
-    "zbirenbaum/copilot.lua",
-    cmd = "Copilot",
-    event = "InsertEnter",
-    opts = {
-      suggestion = { enabled = false },
-      panel = { enabled = false },
-      filetypes = {
-        markdown = true,
-        help = true,
-      },
-    },
-  },
-  {
     "saghen/blink.cmp",
     optional = true,
-    dependencies = { "fang2hou/blink-copilot" },
     opts = function()
       return require "configs.blink"
     end,
@@ -192,6 +178,15 @@ local plugins = {
   {
     "nvim-tree/nvim-tree.lua",
     enabled = false,
-  }
+  },
+  {
+    "nvzone/menu",
+    enabled = false,
+  },
+  {
+    "nvzone/minty",
+    enabled = false,
+  },
+
 }
 return plugins
