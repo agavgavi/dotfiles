@@ -68,9 +68,7 @@ M.mason = {
         "eslint-lsp",
         "lemminx",
         "lua-language-server",
-        "vtsls",
         "bash-language-server",
-        -- re-add "pyright" if use_odoo_lsp is flipped back on
   }
 }
 
