@@ -3,8 +3,29 @@ local M = {}
 M.ui = {
   statusline = {
     theme = "vscode_colored",
-    order = { "mode", "file", "git", "%=", "abc", "lsp_msg", "%=", "diagnostics", "lsp", "cursor", "cwd" },
+    order = { "mode", "file", "git", "%=", "abc", "lsp_msg", "%=", "odoo", "diagnostics", "lsp", "cursor", "cwd" },
     modules = {
+      odoo = function()
+        local ok, odools = pcall(require, "odools")
+        if not ok or vim.o.columns <= 85 then
+          return ""
+        end
+        local s = odools.status()
+        if not s.running then
+          return ""
+        end
+        if s.crashed then
+          return "%#St_lspError#  " .. (s.profile or "odoo") .. " ✗ %#StText#"
+        end
+        local out = "%#St_LspStatus#  " .. (s.profile or "odoo") .. (s.loading == "start" and " 󰦖" or "")
+        if s.config_errors > 0 then
+          out = out .. " %#St_lspError#" .. s.config_errors .. "E"
+        end
+        if s.config_warnings > 0 then
+          out = out .. " %#St_lspWarning#" .. s.config_warnings .. "W"
+        end
+        return out .. "%#StText# "
+      end,
       abc = function()
         local name = vim.uv.cwd()
         if (name:match "([^/\\]+)[/\\]*$" or name) == 'iap' then
