@@ -1,9 +1,10 @@
 local plugins = {
   {
-    -- local checkout; becomes a github slug once published. Eager: configs
-    -- .lspconfig enables 'odools' at startup, so the lsp/odools.lua spec must
-    -- already be on the runtimepath (ft-lazy would race the first attach).
-    dir = "~/Dev/odoo-ls.nvim",
+    -- dogfooding the odoo-neovim redesign branch (fallback: ~/Dev/odoo-ls.nvim).
+    -- Eager: configs.lspconfig enables 'odoo_ls' at startup, so the
+    -- lsp/odoo_ls.lua spec must already be on the runtimepath (ft-lazy would
+    -- race the first attach).
+    dir = "~/Dev/odoo-neovim",
     lazy = false,
   },
   {

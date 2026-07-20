@@ -53,9 +53,9 @@ local plain = { 'lua_ls', 'bashls', 'html', 'cssls' }
 -- name -> vim.lsp.config() overrides
 local servers = {
   -- everything protocol-shaped (handlers, restart, utf-16 caps, filetypes)
-  -- comes from odoo-ls.nvim; only personal overrides live here.
-  odools = {
-    -- test builds: swap the binary, then :Odools restart
+  -- comes from the odoo-neovim plugin; only personal overrides live here.
+  odoo_ls = {
+    -- test builds: swap the binary, then :OdooLs restart
     -- cmd = { '/home/andg/Dev/archived/odoo-ls/server/target/release/odoo_ls_server', '--config-path', '/home/andg/Dev/odools.toml' },
     -- --config-path pins the config regardless of launch dir (the server's
     -- own discovery walks up from root_dir, which would miss ~/Dev).

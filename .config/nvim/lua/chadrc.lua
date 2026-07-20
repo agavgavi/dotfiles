@@ -6,7 +6,7 @@ M.ui = {
     order = { "mode", "file", "git", "%=", "abc", "lsp_msg", "%=", "odoo", "diagnostics", "lsp", "cursor", "cwd" },
     modules = {
       odoo = function()
-        local ok, odools = pcall(require, "odools")
+        local ok, odools = pcall(require, "odoo_ls")
         if not ok or vim.o.columns <= 85 then
           return ""
         end
