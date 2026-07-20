@@ -42,17 +42,6 @@ vim.diagnostic.config({
 })
 
 
--- Patch for lemminx/nvim-lspconfig issue: https://github.com/neovim/neovim/issues/30985
-local orig_unregister = vim.lsp.client._unregister
-vim.lsp.client._unregister = function(self, unregistrations)
-  return orig_unregister(self, unregistrations or {})
-end
-
-local orig_register = vim.lsp.client._register
-vim.lsp.client._register = function(self, registrations)
-  return orig_register(self, registrations or {})
-end
-
 function andg_list_workspace_folders()
   for _, client in pairs(vim.lsp.get_clients({ bufnr = 0 })) do
     for _, folder in pairs(client.workspace_folders or {}) do
@@ -148,6 +137,18 @@ local servers = {
   lemminx = {
     active = true,
     opts = {
+      -- lemminx sends the spec-CORRECT spelling `unregistrations`, but the LSP
+      -- spec (and nvim's default handler) use the misspelled `unregisterations`,
+      -- so nvim reads nil and ipairs() errors (neovim #30985). Normalize the
+      -- field, then delegate to the default handler.
+      handlers = {
+        ['client/unregisterCapability'] = function(err, params, ctx)
+          if type(params) == 'table' and params.unregisterations == nil then
+            params.unregisterations = params.unregistrations or {}
+          end
+          return vim.lsp.handlers['client/unregisterCapability'](err, params, ctx)
+        end,
+      },
       settings = {
         xml = {
           -- completion = {
