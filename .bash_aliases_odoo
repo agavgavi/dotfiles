@@ -383,3 +383,30 @@ olist() {
 
     print -r "$output"
 }
+
+# --- zsh completion: branches from odoo + enterprise (union) ---
+if [[ -n "$ZSH_VERSION" ]]; then
+  _odoo_branches() {
+    local -a branches
+    local d
+    for d in ~/Dev/src/odoo ~/Dev/src/enterprise; do
+      [[ -d $d/.git ]] || continue
+      branches+=(${(f)"$(git -C $d for-each-ref --format='%(refname:short)' \
+        refs/heads refs/remotes 2>/dev/null | sed 's#^[^/]*/##')"})
+    done
+    branches=(${(u)branches})            # dedupe across repos
+    _describe -t branches 'branch' branches
+  }
+  _oswitch() {
+    _arguments \
+      '(-f --fallback)'{-f,--fallback}'[fallback branch if target missing]:branch:_odoo_branches' \
+      '*:branch:_odoo_branches'
+  }
+  _orebase() {
+    _arguments \
+      '1:new base:_odoo_branches' \
+      '2:old base:_odoo_branches'
+  }
+  compdef _oswitch oswitch
+  compdef _orebase orebase
+fi
