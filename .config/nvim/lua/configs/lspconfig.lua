@@ -71,6 +71,9 @@ local servers = {
     },
   },
   ruff = {
+    -- odoo_ls is utf-16-only (lemminx coexistence); pin ruff to utf-16 too so
+    -- python buffers don't mix position encodings (checkhealth vim.lsp warning).
+    capabilities = { general = { positionEncodings = { 'utf-16' } } },
     init_options = {
       settings = {
         configuration = '~/ruff.toml',
