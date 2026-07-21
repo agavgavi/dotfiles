@@ -60,7 +60,15 @@ local servers = {
     -- --config-path pins the config regardless of launch dir (the server's
     -- own discovery walks up from root_dir, which would miss ~/Dev).
     cmd = { 'odoo_ls_server', '--config-path', '/home/andg/Dev/odools.toml' },
-    root_dir = '/home/andg/.local/share/nvim/odoo',
+    -- LOAD-BEARING: the server only fully re-analyzes MODIFIED buffers that
+    -- live under a workspace folder; files outside degrade to isolated
+    -- analysis (picking: Any, dead tokens) on the first edit. The old config
+    -- got this via the cwd workspace folder by accident; list the real
+    -- checkouts explicitly instead.
+    workspace_folders = {
+      { uri = vim.uri_from_fname('/home/andg/Dev/src/odoo'), name = 'odoo' },
+      { uri = vim.uri_from_fname('/home/andg/Dev/src/enterprise'), name = 'enterprise' },
+    },
     -- NvChad's `vim.lsp.config("*", ...)` on_init nils semanticTokensProvider
     -- on every client; override with a no-op so odools' semantic tokens survive.
     on_init = function() end,
