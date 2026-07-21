@@ -61,15 +61,11 @@ local servers = {
     -- own discovery walks up from root_dir, which would miss ~/Dev).
     cmd = { 'odoo_ls_server', '--config-path', '/home/andg/Dev/odools.toml' },
     -- LOAD-BEARING: the server only fully re-analyzes MODIFIED buffers that
-    -- live under a workspace folder; files outside degrade to isolated
-    -- analysis (picking: Any, dead tokens) on the first edit and never
-    -- recover. ~/Dev covers odoo, enterprise AND ad-hoc task worktrees --
-    -- the same folder the old config sent by accident via cwd (sessions
-    -- always start at ~/Dev). Verified: identical index time to narrow
-    -- folders, and edits keep full analysis.
-    workspace_folders = {
-      { uri = vim.uri_from_fname('/home/andg/Dev'), name = 'dev' },
-    },
+    -- live under a workspace folder (else they degrade to Any/dead tokens on
+    -- the first edit, permanently). The derived workspace folder from this
+    -- root covers odoo, enterprise AND ad-hoc task worktrees, and the
+    -- constant root keeps every buffer on ONE client/server instance.
+    root_dir = '/home/andg/Dev',
     -- NvChad's `vim.lsp.config("*", ...)` on_init nils semanticTokensProvider
     -- on every client; override with a no-op so odools' semantic tokens survive.
     on_init = function() end,
