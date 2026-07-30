@@ -27,12 +27,15 @@ M.ui = {
         return out .. "%#StText# "
       end,
       abc = function()
-        local name = vim.uv.cwd()
-        if (name:match "([^/\\]+)[/\\]*$" or name) == 'iap' then
-          name ="%#St_lspError#" .. " " .. "IN IAP" .. "%#StText#"
-        else
-          name = ""
+        local ok, odoo_setups = pcall(require, "configs.odoo_setups")
+        if not ok then
+          return ""
         end
+        local setup = odoo_setups.current(vim.uv.cwd())
+        if not setup or not setup.tag then
+          return ""
+        end
+        local name = setup.tag_hl .. setup.tag_icon .. " " .. setup.tag .. "%#StText#"
         return (vim.o.columns > 85 and name) or ""
       end,
     }
@@ -71,6 +74,7 @@ M.mason = {
         "bash-language-server",
   }
 }
+M.lsp = { signature = false }
 
  M.colorify = {
    enabled = true,

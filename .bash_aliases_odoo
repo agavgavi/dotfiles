@@ -4,7 +4,14 @@
 
 alias odoo-bin='~/Dev/src/odoo/odoo-bin'
 alias odoo-iap='~/Dev/src/iap/odoo-18.0/odoo-bin -c ~/.odoorc-iap'
+alias odoo-odoofin='~/Dev/src/odoofin-env/odoo/odoo-bin -c ~/.odoorc-odoofin'
 alias psus='ssh 6914273@psus-tools.odoo.com'
+
+# All DB-taking functions target oes_<name>. Accept a name that already carries
+# the prefix so `otest oes_foo` and `otest foo` both mean the same database.
+function _ostripdb() {
+  echo "${1#oes_}"
+}
 
 # Function to download a runbot database and restore it.
 function orunbot() {
@@ -28,7 +35,7 @@ function orunbot() {
 
 # Function to drop a database and delete it's filestore folder
 function ocleanup() {
-  DB_NAME=${1:-""}
+  DB_NAME=$(_ostripdb "${1:-""}")
   PERFORM_CLEAN=${2:-""}
   if [[ "$DB_NAME" == "" ]] ; then
       echo "ERROR MUST SPECIFY DB NAME"
@@ -66,48 +73,83 @@ function ocleanup() {
 # supports passing commands to odoo-bin. To do a specific version must check that version
 # out in all folders first.
 function onew() {
-  DB_NAME=${1:-""}
-  shift;
-  OTHERS="$@"
+  local DB_NAME=$(_ostripdb "${1:-""}")
 
   if [[ "$DB_NAME" == "" ]] ; then
-      echo "ERROR MUST SPECIFY DB NAME"
+      echo "usage: onew DB_NAME [odoo-bin args...]"
       return 1
   fi
-  cwd=$(pwd)
+  shift
+  local cwd=$(pwd)
 
   ocleanup "$DB_NAME"
 
   cd ~/Dev/src/
-  echo "odoo-bin -d oes_$DB_NAME $OTHERS --stop-after-init"
-  odoo-bin -d oes_$DB_NAME $OTHERS --stop-after-init;
+  echo "odoo-bin -d oes_$DB_NAME $@ --stop-after-init"
+  odoo-bin -d oes_$DB_NAME "$@" --stop-after-init;
   cd $cwd
 }
 
+# Run tests on a database.
+# Usage: otest DB_NAME [TEST_TAGS] [odoo-bin args...]
+#   TEST_TAGS: :TestClass.test_func,/test_module ; omit to run all tests (--test-enable)
 function otest() {
-  DB_NAME=${1:-""}
-  shift;
-  OTHERS="$@"
+  local DB_NAME=$(_ostripdb "${1:-""}")
 
   if [[ "$DB_NAME" == "" ]] ; then
-    echo "ERROR MUST SPECIFY DB NAME"
+    echo "usage: otest DB_NAME [TEST_TAGS] [odoo-bin args...]"
     return 1
   fi
-  cwd=$(pwd)
+  shift
+  local TAGS=""
+  if [[ $# -gt 0 && "$1" != -* ]]; then
+    TAGS=$1
+    shift
+  fi
+  local cwd=$(pwd)
 
   cd ~/Dev/src/
-  echo "odoo-bin -d oes_$DB_NAME --test-tags $OTHERS --stop-after-init"
-  odoo-bin -d oes_$DB_NAME --test-tags "$OTHERS" --stop-after-init;
+  if [[ -n "$TAGS" ]]; then
+    echo "odoo-bin -d oes_$DB_NAME --test-tags $TAGS $@ --stop-after-init"
+    odoo-bin -d oes_$DB_NAME --test-tags "$TAGS" "$@" --stop-after-init;
+  else
+    echo "odoo-bin -d oes_$DB_NAME --test-enable $@ --stop-after-init"
+    odoo-bin -d oes_$DB_NAME --test-enable "$@" --stop-after-init;
+  fi
   cd $cwd
 }
 
-# Update all folders (pulls run in parallel; -s = silent on success)
+# Upgrade modules on a database and exit (-u base by default).
+# Usage: oub DB_NAME [MODULES] [odoo-bin args...]
+#   oub airwallex                 # -u base
+#   oub airwallex sale,account    # -u sale,account
+function oub() {
+  local DB_NAME=$(_ostripdb "${1:-""}")
+  if [[ "$DB_NAME" == "" ]] ; then
+    echo "usage: oub DB_NAME [MODULES] [odoo-bin args...]"
+    return 1
+  fi
+  shift
+  local MODULES=base
+  if [[ $# -gt 0 && "$1" != -* ]]; then
+    MODULES=$1
+    shift
+  fi
+  local cwd=$(pwd)
+
+  cd ~/Dev/src/
+  echo "odoo-bin -d oes_$DB_NAME -u $MODULES $@ --stop-after-init"
+  odoo-bin -d oes_$DB_NAME -u "$MODULES" "$@" --stop-after-init;
+  cd $cwd
+}
+
+# Update all folders (pulls run in parallel; one summary line per repo,
+# full git output only on failure)
 function oupdate() {
     setopt local_options no_notify no_monitor
     set -o shwordsplit
     local ODOO_PATH=~/Dev/src
     local cwd=$(pwd)
-    local FLAG=${1:-""}
     local ODOO_FOLDERS="enterprise odoo internal upgrade upgrade-util"
 
     local tmpdir
@@ -124,17 +166,16 @@ function oupdate() {
     done
     wait
 
-    # Print results in deterministic order
+    # Print results in deterministic order; full log only on failure
     for folder in $ODOO_FOLDERS; do
         local rc=$(command cat "$tmpdir/$folder.rc")
         if [[ "$rc" != "0" ]]; then
             echo -e "${RED}FAILED: $folder (exit $rc)${NC}"
             command cat "$tmpdir/$folder.log"
-        elif [[ "$FLAG" != "-s" ]]; then
-            echo -e "${GREEN}Updated $folder${NC}"
-            command cat "$tmpdir/$folder.log"
         else
-            echo -e "${GREEN}Updated $folder${NC}"
+            local summary=$(command grep -E '^Already up to date|^Updating [0-9a-f]+\.\.|files? changed' \
+                "$tmpdir/$folder.log" | sed 's/^ *//;s/^Updating //' | awk 'NR>1{printf ", "}{printf "%s",$0}')
+            echo -e "${GREEN}Updated $folder${NC}${summary:+ ${GRAY}($summary)${NC}}"
         fi
     done
 
@@ -194,59 +235,24 @@ function ogit() {
   git log -G "$STRING" --since="$DATE" --grep="$GREP" -p | egrep "(^commit [0-9a-f]+$)|diff --git|$STRING"
 }
 
-# Swap all folders to the required version. Can pass a default as necessary
-# if the folder doesn't exist on the repo. Folders are processed in parallel.
+# Swap odoo + enterprise to a branch, in parallel. If a repo doesn't have the
+# branch (locally or on origin), falls back to the base version inferred from
+# its name (master-foo-andg -> master). `oswitch -` = previous branch per repo.
+# Remote-qualified names are accepted and stripped (odoo-dev:master-foo -> master-foo).
 function oswitch() {
   setopt local_options no_notify no_monitor shwordsplit rematchpcre
 
   local ODOO_PATH=~/Dev/src
-  local VERSION=""
-  local DEFAULT=""
   local ODOO_FOLDERS="odoo enterprise"
-  # Function to display usage
-  usage() {
-    echo "Usage: oswitch <target_branch> [-f|--fallback <fallback_branch>]"
-    echo "  <target_branch>           Branch to switch to (required)"
-    echo "  -f, --fallback BRANCH     Fallback branch if target doesn't exist (optional)"
-    return 1
-  }
+  local VERSION=${1:-""}
 
-  # Parse arguments
-  local POSITIONAL_ARGS=()
-
-  while [[ $# -gt 0 ]]; do
-    case $1 in
-      -f|--fallback)
-        DEFAULT="$2"
-        shift 2
-        ;;
-      -h|--help)
-        usage
-        return 0
-        ;;
-      -*|--*)
-        echo "Unknown option $1"
-        usage
-        return 1
-        ;;
-      *)
-        POSITIONAL_ARGS+=("$1")
-        shift
-        ;;
-    esac
-  done
-
-  # Restore positional parameters
-  set -- "${POSITIONAL_ARGS[@]}"
-
-  # First positional argument is the target branch
-  if [[ $# -gt 0 ]]; then
-    VERSION="$1"
-  else
-    echo "Error: Target branch is required"
-    usage
+  if [[ "$VERSION" == "" ]]; then
+    echo "usage: oswitch <branch>   (- for previous branch)"
     return 1
   fi
+
+  # odoo:master -> master, odoo-dev:master-foo-andg -> master-foo-andg
+  VERSION=${VERSION##*:}
 
   local cwd=$(pwd)
   local tmpdir
@@ -259,17 +265,17 @@ function oswitch() {
       cd $ODOO_PATH/$fold
       {
         git fetch > /dev/null 2>&1
-        if git show-ref --quiet refs/heads/$VERSION; then
+        if [[ "$VERSION" == "-" ]] || \
+           git show-ref --quiet refs/heads/$VERSION refs/remotes/origin/$VERSION; then
           git checkout $VERSION
-        elif [[ $DEFAULT ]]; then
-          echo -e "${RED}Can't find ${YELLOW}$VERSION${NC}${RED} branch, using default ${GREEN}$DEFAULT${NC}"
-          git checkout $DEFAULT
         else
           [[ $VERSION =~ '^(master|(saas-)?\d+.\d+)' ]]
           local head=$match[1]
-          echo -e "${RED}Can't find ${YELLOW}$VERSION${NC}${RED} branch, trying ${GREEN}$head${NC}"
-          if git show-ref --quiet refs/heads/$head; then
+          if [[ -n "$head" ]] && git show-ref --quiet refs/heads/$head; then
+            echo -e "${RED}Can't find ${YELLOW}$VERSION${NC}${RED} branch, using ${GREEN}$head${NC}"
             git checkout $head
+          else
+            echo -e "${RED}Can't find ${YELLOW}$VERSION${NC}${RED} branch and no base fallback${NC}"
           fi
         fi
       } > "$tmpdir/$fold.log" 2>&1
@@ -277,8 +283,9 @@ function oswitch() {
   done
   wait
 
+  # Prefix each line with the repo name so messages are attributable
   for fold in $ODOO_FOLDERS; do
-    command cat "$tmpdir/$fold.log"
+    command sed "s/^/${YELLOW}${fold}${NC} | /" "$tmpdir/$fold.log"
   done
 
   rm -rf "$tmpdir"
@@ -313,7 +320,7 @@ oinstall-pydevd() {
 # API key (auto-rotating). Targets oes_DB_NAME, matching onew/otest.
 # Usage: omcp DB_NAME   then reconnect with /mcp in Claude Code (or restart).
 function omcp() {
-  "$HOME/.claude/hooks/odoo-mcp-sync.sh" "oes_${1:?usage: omcp DB_NAME}"
+  "$HOME/.claude/hooks/odoo-mcp-sync.sh" "oes_$(_ostripdb "${1:?usage: omcp DB_NAME}")"
 }
 
 # Install odoo_ls_server from a branch and sync the runtime typeshed clone to
@@ -384,7 +391,7 @@ olist() {
     print -r "$output"
 }
 
-# --- zsh completion: branches from odoo + enterprise (union) ---
+# --- zsh completion helpers ---
 if [[ -n "$ZSH_VERSION" ]]; then
   _odoo_branches() {
     local -a branches
@@ -398,15 +405,83 @@ if [[ -n "$ZSH_VERSION" ]]; then
     _describe -t branches 'branch' branches
   }
   _oswitch() {
-    _arguments \
-      '(-f --fallback)'{-f,--fallback}'[fallback branch if target missing]:branch:_odoo_branches' \
-      '*:branch:_odoo_branches'
+    _arguments '1:branch:_odoo_branches'
   }
   _orebase() {
     _arguments \
       '1:new base:_odoo_branches' \
       '2:old base:_odoo_branches'
   }
+  # Existing oes_* databases, offered without the oes_ prefix (every db-taking
+  # function strips it through _ostripdb, so both forms work).
+  _odoo_databases() {
+    local -a dbs
+    dbs=(${(f)"$(psql -t -A -d postgres -c \
+      "SELECT substring(datname from 5) FROM pg_database WHERE datname LIKE 'oes\_%' ORDER BY 1" \
+      2>/dev/null)"})
+    _describe -t databases 'database' dbs
+  }
+
+  # Module names from the community + enterprise addons paths.
+  _odoo_module_names() {
+    local d
+    local -a modules
+    for d in ~/Dev/src/odoo/addons ~/Dev/src/odoo/odoo/addons ~/Dev/src/enterprise; do
+      modules+=(${d}/*/__manifest__.py(N:h:t))
+    done
+    print -l -- ${(uo)modules}
+  }
+
+  # -u takes a comma-separated module list.
+  _odoo_modules() {
+    local -a modules
+    modules=(${(f)"$(_odoo_module_names)"})
+    _values -s , 'module' $modules
+  }
+
+  # --test-tags: comma-separated; only the /<module> form is completable.
+  _odoo_test_tags() {
+    compset -P '*,'
+    if compset -P '/'; then
+      local -a modules
+      modules=(${(f)"$(_odoo_module_names)"})
+      _describe -t modules 'module' modules
+    else
+      _message 'test tags (:TestClass.test_func, /module)'
+    fi
+  }
+
+  _ocleanup() {
+    _arguments \
+      '1:database:_odoo_databases' \
+      '2:delete filestore:(y n)'
+  }
+  _onew() {
+    _arguments \
+      '1:database:_odoo_databases' \
+      '*::odoo-bin args:_default'
+  }
+  _otest() {
+    _arguments \
+      '1:database:_odoo_databases' \
+      '2:test tags:_odoo_test_tags' \
+      '*::odoo-bin args:_default'
+  }
+  _oub() {
+    _arguments \
+      '1:database:_odoo_databases' \
+      '2:modules:_odoo_modules' \
+      '*::odoo-bin args:_default'
+  }
+  _omcp() {
+    _arguments '1:database:_odoo_databases'
+  }
+
   compdef _oswitch oswitch
   compdef _orebase orebase
+  compdef _ocleanup ocleanup
+  compdef _onew onew
+  compdef _otest otest
+  compdef _oub oub
+  compdef _omcp omcp
 fi

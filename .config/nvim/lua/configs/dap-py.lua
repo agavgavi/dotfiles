@@ -16,31 +16,61 @@ dap.configurations.javascript = js_configs
 
 dap.defaults.fallback.exceptions_breakpoints = {}
 
-local function get_database_tables()
-  local handle = io.popen("python3 ~/Dev/support/scripts/configs/getDBS.py")
-  if handle == nil then return end
+local LIST_QUERY = "SELECT datname FROM pg_database WHERE datname LIKE 'oes_%' ORDER BY datname"
+-- Long bracket: no escape processing, so `\d` reaches postgres intact.
+local VERSION_QUERY =
+  [[select replace((regexp_matches(latest_version, '^\d+\.\d+|^saas~\d+\.\d+|saas~\d+'))[1], '~', '-') from ir_module_module where name='base']]
 
-  local result = handle:read("*a")
-  local lines = {}
-
-  -- getDBS.py outputs `label|value|description` (e.g. `envia|envia|(19.4)`)
-  -- shared with VSCode via the tasks-shell-input extension's fieldSeparator.
-  for s in result:gmatch("[^\r\n]+") do
-    local label, value, description = s:match("^([^|]+)|([^|]+)|(.+)$")
-    if label then
-      table.insert(lines, {
-        label = label,
-        value = value,
-        description = description,
-        text = label .. " " .. description,
-      })
-    else
-      table.insert(lines, { label = s, value = s, description = "", text = s })
-    end
+--- Lists oes_* databases with versions off the UI thread; on_done(items|nil, err).
+--- Two psql spawns: the second `\c` reconnects, vs one process per database.
+local function get_database_tables(on_done)
+  local function done(items, err)
+    -- vim.system callbacks are a fast event context; the API needs the main loop.
+    vim.schedule(function() on_done(items, err) end)
   end
 
-  handle:close()
-  return lines
+  vim.system({ "psql", "-tAqX", "-d", "postgres", "-c", LIST_QUERY }, { text = true }, function(list)
+    if list.code ~= 0 then
+      return done(nil, list.stderr)
+    end
+
+    local dbs = {}
+    for db in list.stdout:gmatch("oes_(%S+)") do
+      table.insert(dbs, db)
+    end
+    if #dbs == 0 then
+      return done({})
+    end
+
+    local script = {}
+    for _, db in ipairs(dbs) do
+      table.insert(script, string.format("\\c oes_%s\nselect '%s|' || (%s);", db, db, VERSION_QUERY))
+    end
+
+    vim.system(
+      { "psql", "-tAqX", "-d", "postgres", "-f", "-" },
+      { stdin = table.concat(script, "\n"), text = true },
+      function(res)
+        -- Unreachable db, or no ir_module_module: no row, falls back to N/A.
+        local versions = {}
+        for db, version in (res.stdout or ""):gmatch("([^|\n]+)|([^\n]+)") do
+          versions[db] = version
+        end
+
+        local items = {}
+        for _, db in ipairs(dbs) do
+          local description = string.format("(%s)", versions[db] or "N/A")
+          table.insert(items, {
+            label = db,
+            value = db,
+            description = description,
+            text = db .. " " .. description,
+          })
+        end
+        done(items)
+      end
+    )
+  end)
 end;
 
 local function get_name(item)
@@ -56,70 +86,62 @@ local function format_db_item(item)
   return item.label
 end;
 
-local function get_args_bin(postfix)
-  postfix = postfix or ""
-  local prompt = string.format("Select a Database%s",postfix)
+-- Picks the database, then appends the setup's own `-c <odoorc>` if it has one.
+local function get_args(setup)
+  local prompt = string.format(
+    "Select a Database%s",
+    setup.prompt_label and string.format(" (%s)", setup.prompt_label) or ""
+  )
   return coroutine.create(function(dap_run_co)
-    local items = get_database_tables()
-    if items == nil then
-      coroutine.close(dap_run_co)
-      return
-    end
-    if #items == 1 then
-      coroutine.resume(dap_run_co, get_name(items[1]))
-      return
-    end
-    vim.ui.select(items, { prompt = prompt, format_item = format_db_item }, function(choice)
-      if choice == nil then
-        coroutine.resume(dap_run_co, dap.ABORT)
-      else
-        coroutine.resume(dap_run_co, get_name(choice))
+    local function finish(item)
+      local args = get_name(item)
+      if setup.odoorc then
+        table.insert(args, '-c' .. setup.odoorc)
       end
+      coroutine.resume(dap_run_co, args)
+    end
+
+    local function abort(msg)
+      vim.notify(msg, vim.log.levels.ERROR)
+      coroutine.resume(dap_run_co, dap.ABORT)
+    end
+
+    get_database_tables(function(items, err)
+      if items == nil then
+        return abort("Could not list databases: " .. (err or "psql failed"))
+      end
+      if #items == 0 then
+        return abort("No oes_* databases found.")
+      end
+      if #items == 1 then
+        return finish(items[1])
+      end
+      vim.ui.select(items, { prompt = prompt, format_item = format_db_item }, function(choice)
+        if choice == nil then
+          coroutine.resume(dap_run_co, dap.ABORT)
+        else
+          finish(choice)
+        end
+      end)
     end)
   end)
 end;
 
-local function get_args_iap()
-  return coroutine.create(function(dap_run_co)
-    local intermediate_co = coroutine.create(function(args)
-      if args == dap.ABORT then
-        coroutine.resume(dap_run_co, dap.ABORT)
-      else
-        coroutine.resume(dap_run_co, {args[1], '-c/home/andg/.odoorc-iap'})
-      end
-    end)
+local odoo_setups = require "configs.odoo_setups"
 
-    local bin_co = get_args_bin(" (IAP)")
-    coroutine.resume(bin_co, intermediate_co)
-  end)
-end;
-
-local odoo_config = {
+-- Resolve at LAUNCH time: ft="python" sources this once, so a local would stay
+-- frozen at that cwd while persistence.nvim swaps projects underneath it.
+local workspace_config = {
   type = 'python',
   justmycode = false,
   request = 'launch',
-  name = 'Launch Odoo Bin',
-  args = get_args_bin,
-  program = '/home/andg/Dev/src/odoo/odoo-bin',
+  -- Read before expansion runs, so this is the one field that cannot defer.
+  name = 'Launch Odoo',
+  args = function() return get_args(odoo_setups.current()) end,
+  program = function() return odoo_setups.current().program end,
   pythonPath = path,
   console = 'integratedTerminal',
 };
-
-local iap_config = {
-  type = 'python',
-  justmycode = false,
-  request = 'launch',
-  name = 'Launch Odoo IAP',
-  args = get_args_iap,
-  program = '/home/andg/Dev/src/iap/odoo-18.0/odoo-bin',
-  pythonPath = path,
-  console = 'integratedTerminal',
-};
-
-local workspace_config = odoo_config
-if vim.fn.getcwd():match("iap") then
-  workspace_config = iap_config
-end
 
 for _, value in ipairs({py_configs, xml_configs, js_configs}) do
   table.insert(value, workspace_config)

@@ -50,16 +50,17 @@ end
 -- enabled with their nvim-lspconfig defaults, no local overrides
 local plain = { 'lua_ls', 'bashls', 'html', 'cssls' }
 
+
 -- name -> vim.lsp.config() overrides
 local servers = {
   -- everything protocol-shaped (handlers, restart, utf-16 caps, filetypes)
   -- comes from the odoo-neovim plugin; only personal overrides live here.
   odoo_ls = {
-    -- test builds: swap the binary, then :OdooLs restart
-    -- cmd = { '/home/andg/Dev/archived/odoo-ls/server/target/release/odoo_ls_server', '--config-path', '/home/andg/Dev/odools.toml' },
     -- --config-path pins the config regardless of launch dir (the server's
     -- own discovery walks up from root_dir, which would miss ~/Dev).
-    cmd = { 'odoo_ls_server', '--config-path', '/home/andg/Dev/odools.toml' },
+    -- test builds: swap the binary, then :OdooLs restart
+    cmd = { '/home/andg/Dev/archived/odoo-ls/server/target/release/odoo_ls_server', '--config-path', '/home/andg/Dev/odools.toml' },
+    -- cmd = { 'odoo_ls_server', '--config-path', '/home/andg/Dev/odools.toml' },
     -- LOAD-BEARING: the server only fully re-analyzes MODIFIED buffers that
     -- live under a workspace folder (else they degrade to Any/dead tokens on
     -- the first edit, permanently). The derived workspace folder from this
@@ -69,6 +70,12 @@ local servers = {
     -- NvChad's `vim.lsp.config("*", ...)` on_init nils semanticTokensProvider
     -- on every client; override with a no-op so odools' semantic tokens survive.
     on_init = function() end,
+    -- Pick the workspace's profile at CLIENT-START time; a static value would
+    -- freeze at the cwd this file was sourced with (persistence.nvim swaps it).
+    before_init = function(_, config)
+      -- Mutate in place: the client already aliased `config.settings`.
+      config.settings.Odoo.selectedProfile = require('configs.odoo_setups').current().odools_profile
+    end,
     settings = {
       Odoo = {
         selectedProfile = 'Custom Setup', -- must match a profile in odools.toml
@@ -121,14 +128,14 @@ local servers = {
     },
     settings = {
       xml = {
-        -- completion = {
-        --   autoCloseTags = true,
-        -- },
         symbols = {
           enabled = true,
         },
         format = {
           splitAttributes = false
+        },
+        validation = {
+          noGrammar = 'ignore',
         },
       },
     },
