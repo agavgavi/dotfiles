@@ -409,7 +409,7 @@ olist() {
 }
 
 # --- zsh completion helpers ---
-if [[ -n "$ZSH_VERSION" ]]; then
+if [[ -n "$ZSH_VERSION" ]] && [[ -o interactive ]]; then
   _odoo_branches() {
     local -a branches
     local d
