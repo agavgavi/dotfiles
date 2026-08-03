@@ -13,6 +13,18 @@ function _ostripdb() {
   echo "${1#oes_}"
 }
 
+# Ports for the one-shot commands below. They pass --stop-after-init, which
+# normally skips the http server entirely -- but --test-enable/--test-tags force
+# it up anyway (service/server.py: `if config['test_enable'] or ...`). Without an
+# override an HttpCase then talks to whatever dev server holds the default port,
+# lands on the wrong database, and the HTTP half of the suite dies with
+# SessionExpiredException.
+# Kept clear of every configured instance: main 8069/8572 (~/.odoorc),
+# odoofin 6969/8073, iap 8049/8549.
+function _oports() {
+  echo "--http-port=8869 --gevent-port=8872"
+}
+
 # Function to download a runbot database and restore it.
 function orunbot() {
   zipname=$(basename "$1")
@@ -85,8 +97,10 @@ function onew() {
   ocleanup "$DB_NAME"
 
   cd ~/Dev/src/
-  echo "odoo-bin -d oes_$DB_NAME $@ --stop-after-init"
-  odoo-bin -d oes_$DB_NAME "$@" --stop-after-init;
+  # No http server unless a passed-through --test-enable forces one; the ports
+  # only matter in that case, and cost nothing otherwise.
+  echo "odoo-bin -d oes_$DB_NAME $(_oports) $@ --stop-after-init"
+  odoo-bin -d oes_$DB_NAME ${=$(_oports)} "$@" --stop-after-init;
   cd $cwd
 }
 
@@ -107,14 +121,16 @@ function otest() {
     shift
   fi
   local cwd=$(pwd)
+  # Before "$@", so an explicit --http-port on the command line still wins.
+  local -a PORTS=(${=$(_oports)})
 
   cd ~/Dev/src/
   if [[ -n "$TAGS" ]]; then
-    echo "odoo-bin -d oes_$DB_NAME --test-tags $TAGS $@ --stop-after-init"
-    odoo-bin -d oes_$DB_NAME --test-tags "$TAGS" "$@" --stop-after-init;
+    echo "odoo-bin -d oes_$DB_NAME --test-tags $TAGS $(_oports) $@ --stop-after-init"
+    odoo-bin -d oes_$DB_NAME --test-tags "$TAGS" "${PORTS[@]}" "$@" --stop-after-init;
   else
-    echo "odoo-bin -d oes_$DB_NAME --test-enable $@ --stop-after-init"
-    odoo-bin -d oes_$DB_NAME --test-enable "$@" --stop-after-init;
+    echo "odoo-bin -d oes_$DB_NAME --test-enable $(_oports) $@ --stop-after-init"
+    odoo-bin -d oes_$DB_NAME --test-enable "${PORTS[@]}" "$@" --stop-after-init;
   fi
   cd $cwd
 }
@@ -138,8 +154,9 @@ function oub() {
   local cwd=$(pwd)
 
   cd ~/Dev/src/
-  echo "odoo-bin -d oes_$DB_NAME -u $MODULES $@ --stop-after-init"
-  odoo-bin -d oes_$DB_NAME -u "$MODULES" "$@" --stop-after-init;
+  # As in onew: only binds if a passed-through --test-enable asks for it.
+  echo "odoo-bin -d oes_$DB_NAME -u $MODULES $(_oports) $@ --stop-after-init"
+  odoo-bin -d oes_$DB_NAME -u "$MODULES" ${=$(_oports)} "$@" --stop-after-init;
   cd $cwd
 }
 
