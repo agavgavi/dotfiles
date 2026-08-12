@@ -3,9 +3,13 @@
 # Color vars (GREEN/YELLOW/...) are defined there before this file loads.
 
 alias odoo-bin='~/Dev/src/odoo/odoo-bin'
-alias odoo-iap='~/Dev/src/iap/odoo-18.0/odoo-bin -c ~/.odoorc-iap'
-alias odoo-odoofin='~/Dev/src/odoofin-env/odoo/odoo-bin -c ~/.odoorc-odoofin'
 alias psus='ssh 6914273@psus-tools.odoo.com'
+
+# Interactive servers for the non-default envs. Thin wrappers over _orun, so the
+# binary, addons_path and ports all come from each env's .oenv (see below) --
+# there is nothing hardcoded here and nothing to keep in sync by hand.
+function odoo-iap()     { OROOT=~/Dev/src/iap         _orun dev "$@" }
+function odoo-odoofin() { OROOT=~/Dev/src/odoofin-env _orun dev "$@" }
 
 # All DB-taking functions target oes_<name>. Accept a name that already carries
 # the prefix so `otest oes_foo` and `otest foo` both mean the same database.
@@ -20,9 +24,372 @@ function _ostripdb() {
 # lands on the wrong database, and the HTTP half of the suite dies with
 # SessionExpiredException.
 # Kept clear of every configured instance: main 8069/8572 (~/.odoorc),
-# odoofin 6969/8073, iap 8049/8549.
+# odoofin 6969/8073, iap 8049/8549. Per-env values come from .oenv, see the
+# "Odoo environments" section below (_oports lives there now).
+
+# ---------------------------------------------------------------------------
+# Odoo environments (worktree-aware)
+#
+# An "env" is a directory holding an odoo checkout and its companions, marked
+# by a `.oenv` file that records its addons layout and its port pair. Every
+# DB-taking helper resolves its env the same way:
+#
+#   1. $OROOT if exported          (one-shot:  OROOT=~/Dev/wt/foo otest ...)
+#   2. nearest .oenv walking up from $PWD, stopping at $HOME   (implicit)
+#   3. ~/Dev/src                   (the default; also has a .oenv)
+#
+# `.oenv` is a flat key=value file. Recognised keys, all optional:
+#   name=        display name           (default: basename of the root)
+#   odoo=        odoo checkout dirname  (default: odoo)
+#   addons=      comma-separated addons_path entries, relative to the root,
+#                in order            (default: enterprise,odoo/addons)
+#   http_port=   http port              (default: 8869)
+#   gevent_port= gevent port            (default: http_port + 3)
+#   extra=       ';'-separated extra conf lines, e.g. "unaccent = True"
+# ---------------------------------------------------------------------------
+
+# Resolve the active env root. Prints an absolute path, always succeeds.
+function _oroot() {
+  if [[ -n "$OROOT" ]]; then
+    print -r -- "${OROOT:A}"
+    return
+  fi
+  local dir="${PWD:A}"
+  while [[ "$dir" == "$HOME"/* ]]; do
+    if [[ -f "$dir/.oenv" ]]; then
+      print -r -- "$dir"
+      return
+    fi
+    dir="${dir:h}"
+  done
+  print -r -- "${HOME}/Dev/src"
+}
+
+# _oenv_get <key> [default] -- read a key out of the active env's .oenv
+function _oenv_get() {
+  local root=$(_oroot) key="$1" def="${2:-}" line
+  if [[ -f "$root/.oenv" ]]; then
+    line=$(grep -m1 "^${key}=" "$root/.oenv" 2>/dev/null)
+    if [[ -n "$line" ]]; then
+      print -r -- "${line#${key}=}"
+      return
+    fi
+  fi
+  print -r -- "$def"
+}
+
 function _oports() {
-  echo "--http-port=8869 --gevent-port=8872"
+  local http=$(_oenv_get http_port 8869)
+  print -r -- "--http-port=$http --gevent-port=$(_oenv_get gevent_port $((http + 3)))"
+}
+
+# Generate a conf for the active env from ~/.odoorc, on every call (never
+# cached, so edits to ~/.odoorc always take). Prints the conf path.
+#   _oconf [test]   -- pass "test" to strip dev_mode/dev, which otherwise
+#                      implies `xml` and permanently disables QWeb caching.
+#
+# Written to a stable path *inside* the env (`.oenv.conf`, `.oenv-test.conf`)
+# rather than a cache dir, so the env is self-describing: any other tool -- the
+# nvim DAP config, in particular -- can point at a known path instead of having
+# to shell out to this function. owt seeds both at creation; every run refreshes.
+function _oconf() {
+  local root=$(_oroot) mode="${1:-dev}"
+  local odoo_dir=$(_oenv_get odoo odoo)
+  local addons=$(_oenv_get addons "enterprise,${odoo_dir}/addons")
+  local http=$(_oenv_get http_port 8869)
+  local gevent=$(_oenv_get gevent_port $((http + 3)))
+
+  # relative addons entries -> absolute, preserving order
+  local -a parts=(${(s:,:)addons}) abs=()
+  local p
+  for p in $parts; do
+    [[ -z "$p" ]] && continue
+    [[ "$p" == /* ]] && abs+=("$p") || abs+=("$root/$p")
+  done
+
+  local conf="$root/.oenv.conf"
+  [[ "$mode" == test ]] && conf="$root/.oenv-test.conf"
+
+  sed -e "s|^addons_path *=.*|addons_path = ${(j:,:)abs}|" \
+      -e "s|^http_port *=.*|http_port = $http|" \
+      -e "s|^gevent_port *=.*|gevent_port = $gevent|" \
+      ~/.odoorc > "$conf"
+
+  if [[ "$mode" == test ]]; then
+    sed -i -e '/^dev_mode *=/d' -e '/^dev *=/d' "$conf"
+  fi
+
+  local extra=$(_oenv_get extra "")
+  if [[ -n "$extra" ]]; then
+    local -a lines=(${(s:;:)extra})
+    local l
+    for l in $lines; do
+      [[ -n "$l" ]] && sed -i "/^\[options\]/a $l" "$conf"
+    done
+  fi
+
+  print -r -- "$conf"
+}
+
+# One-line env banner. Green bar on the default env, yellow anywhere else, so
+# an implicitly-picked env is never silent.
+function _obanner() {
+  local root=$(_oroot)
+  local name=$(_oenv_get name "${root:t}")
+  local odoo_dir=$(_oenv_get odoo odoo)
+  local bar_color=$YELLOW
+  [[ "$root" == "${HOME}/Dev/src" ]] && bar_color=$GREEN
+
+  local out="${bar_color}▏${NC}${BOLD}${CYAN}${name}${NC}"
+  out+=" ${BLUE}:$(_oenv_get http_port 8869)${NC}"
+
+  # Repos to report = the odoo checkout plus the top-level dir of every addons
+  # entry, deduped and order-preserved, so each env describes itself.
+  local addons=$(_oenv_get addons "enterprise,${odoo_dir}/addons")
+  local -a repos=("$odoo_dir" ${${(s:,:)addons}%%/*})
+  local d sha branch
+  for d in ${(u)repos}; do
+    [[ -e "$root/$d/.git" ]] || continue
+    sha=$(git -C "$root/$d" rev-parse --short=8 HEAD 2>/dev/null) || continue
+    branch=$(git -C "$root/$d" rev-parse --abbrev-ref HEAD 2>/dev/null)
+    [[ "$branch" == HEAD ]] && branch="detached"
+    out+="  ${d} ${YELLOW}${sha}${NC}${GREEN}(${branch})${NC}"
+  done
+  print -r -- "$out"
+}
+
+# Run odoo-bin inside the active env. All args are passed through.
+#   _orun [test] -- <odoo-bin args...>
+function _orun() {
+  local mode=dev
+  if [[ "$1" == test ]]; then mode=test; shift; fi
+  [[ "$1" == "--" ]] && shift
+
+  local root=$(_oroot)
+  local odoo_dir=$(_oenv_get odoo odoo)
+  local bin="$root/$odoo_dir/odoo-bin"
+
+  if [[ ! -x "$bin" ]]; then
+    print -r -- "${RED}no odoo-bin at ${YELLOW}${bin}${NC}" >&2
+    print -r -- "${RED}(env root ${YELLOW}${root}${RED}; fix its .oenv 'odoo=' key)${NC}" >&2
+    return 1
+  fi
+
+  _obanner
+  local conf=$(_oconf "$mode")
+  "$bin" -c "$conf" "$@"
+}
+
+# Show or set the active env for this shell.
+#   oenv            -- print the active env, and every env known under ~/Dev
+#   oenv <path|slug> -- export OROOT (a bare slug resolves under ~/Dev/wt)
+#   oenv -          -- unset OROOT, back to implicit resolution
+function oenv() {
+  local target="${1:-}"
+
+  if [[ "$target" == "-" ]]; then
+    unset OROOT
+    print -r -- "${GREEN}OROOT unset${NC} (implicit resolution)"
+    _obanner
+    return
+  fi
+
+  if [[ -n "$target" ]]; then
+    local root="$target"
+    [[ -d "$root" ]] || root="$HOME/Dev/wt/$target"
+    if [[ ! -f "$root/.oenv" ]]; then
+      print -r -- "${RED}no .oenv at ${YELLOW}${root:A}${NC}" >&2
+      return 1
+    fi
+    export OROOT="${root:A}"
+    _obanner
+    return
+  fi
+
+  _obanner
+  print -r -- "${BOLD}known envs${NC}"
+  local f r n
+  for f in ${HOME}/Dev/src/.oenv ${HOME}/Dev/src/*/.oenv(N) ${HOME}/Dev/wt/*/.oenv(N); do
+    r="${f:h}"
+    n=$(grep -m1 '^name=' "$f" 2>/dev/null); n="${n#name=}"
+    printf "  %s%-14s%s %s:%-6s%s %s\n" \
+      "$CYAN" "${n:-${r:t}}" "$NC" "$BLUE" "$(grep -m1 '^http_port=' "$f" | cut -d= -f2)" "$NC" "$r"
+  done
+}
+
+# Pick the lowest free http port from the pool, skipping ones already claimed
+# by an .oenv. 8069/8572, 6969/8073, 8049/8549 are the long-lived instances.
+function _oport_free() {
+  local -a taken=(8069 8572 6969 8073 8049 8549 8869 8872)
+  local f p
+  for f in ${HOME}/Dev/src/.oenv ${HOME}/Dev/src/*/.oenv(N) ${HOME}/Dev/wt/*/.oenv(N); do
+    p=$(grep -m1 '^http_port=' "$f" 2>/dev/null | cut -d= -f2)
+    [[ -n "$p" ]] && taken+=($p $((p + 3)))
+  done
+  for p in {8900..8990}; do
+    if [[ -z "${taken[(r)$p]}" && -z "${taken[(r)$((p + 3))]}" ]]; then
+      print -r -- "$p"
+      return
+    fi
+  done
+  print -r -- 8900
+}
+
+# Create an isolated env from worktrees of odoo + enterprise.
+#   owt <slug> <ref> [<odoo-ref>]
+#
+# <ref> is checked out in enterprise (a branch, tag, sha, or pr/<N> to fetch a
+# pull request head). odoo is date-matched to it unless <odoo-ref> is given --
+# a skew of even a few days across the two repos breaks module loading, so this
+# is the default rather than an option.
+function owt() {
+  setopt local_options no_notify no_monitor
+
+  local slug="${1:-}" ref="${2:-}" odoo_ref="${3:-}"
+  if [[ -z "$slug" || -z "$ref" ]]; then
+    print -r -- "usage: owt <slug> <ref> [<odoo-ref>]"
+    print -r -- "  owt mx-xml pr/110030        # PR head in enterprise, date-matched odoo"
+    print -r -- "  owt cl-edi 19.0-foo-andg    # a branch"
+    return 1
+  fi
+
+  local root="$HOME/Dev/wt/$slug"
+  if [[ -e "$root" ]]; then
+    print -r -- "${RED}$root already exists${NC}" >&2
+    return 1
+  fi
+
+  # Resolve the enterprise ref, fetching a PR head if asked for one. Fetch into
+  # FETCH_HEAD rather than straight into the branch: the branch may already be
+  # checked out in another worktree, which git refuses to update.
+  local ent_ref="$ref"
+  if [[ "$ref" == pr/* ]]; then
+    local num="${ref#pr/}"
+    ent_ref="pr-$num"
+    print -r -- "${GREEN}fetching enterprise PR ${YELLOW}#$num${NC}"
+    git -C "$HOME/Dev/src/enterprise" fetch -q origin "pull/$num/head" || return 1
+    if git -C "$HOME/Dev/src/enterprise" show-ref -q --verify "refs/heads/$ent_ref"; then
+      if [[ $(git -C "$HOME/Dev/src/enterprise" rev-parse "$ent_ref") \
+            != $(git -C "$HOME/Dev/src/enterprise" rev-parse FETCH_HEAD) ]]; then
+        print -r -- "${YELLOW}note: local $ent_ref differs from the PR head; using the local branch${NC}"
+      fi
+    else
+      git -C "$HOME/Dev/src/enterprise" branch -q "$ent_ref" FETCH_HEAD || return 1
+    fi
+  else
+    git -C "$HOME/Dev/src/enterprise" fetch -q origin || true
+  fi
+
+  local ent_sha
+  ent_sha=$(git -C "$HOME/Dev/src/enterprise" rev-parse --verify "$ent_ref^{commit}" 2>/dev/null) || {
+    print -r -- "${RED}enterprise: cannot resolve ${YELLOW}$ent_ref${NC}" >&2
+    return 1
+  }
+
+  # Pin odoo. Runbot pairs a branch with the base-branch *batch* it forked from,
+  # which follows runbot's own batching cadence -- not git timestamps, which can
+  # only ever approximate it (they land within a commit or two). So ask runbot
+  # when a bundle exists, and fall back to the nearest master commit otherwise.
+  git -C "$HOME/Dev/src/odoo" fetch -q origin || true
+
+  # The base branch the fallback measures against. A dev branch is cut from its
+  # own version (`saas-19.4-foo-andg` -> `saas-19.4`), not from master, and
+  # runbot reports it as "from base: <version>". For a PR, ask github; for a
+  # plain branch ref, take the version prefix the way oswitch/orebase do.
+  local base_branch bundle
+  if [[ "$ref" == pr/* ]]; then
+    base_branch=$(gh pr view "${ref#pr/}" --repo odoo/enterprise --json baseRefName -q .baseRefName 2>/dev/null)
+    bundle=$(gh pr view "${ref#pr/}" --repo odoo/enterprise --json headRefName -q .headRefName 2>/dev/null)
+  else
+    bundle="$ent_ref"
+    [[ "$ent_ref" =~ '^(master|saas-[0-9]+\.[0-9]+|[0-9]+\.[0-9]+)' ]] && base_branch="$match[1]"
+  fi
+  : ${base_branch:=master}
+
+  if [[ -z "$odoo_ref" ]]; then
+    if [[ -n "$bundle" ]]; then
+      odoo_ref=$(python3 "$HOME/Dev/scratch/runbot-status/runbot_status.py" bundle "$bundle" --batches 1 2>/dev/null \
+        | python3 -c "
+import json,sys
+try:
+    b = json.load(sys.stdin)['batches'][0]
+    print(next(c['commit'] for c in b['commits'] if c['repo'] == 'odoo'))
+except Exception:
+    pass
+" 2>/dev/null)
+      [[ -n "$odoo_ref" ]] && print -r -- "${GREEN}odoo pinned from runbot bundle ${YELLOW}${bundle}${NC} ${GREEN}-> ${YELLOW}${odoo_ref:0:12}${NC}"
+    fi
+  fi
+
+  if [[ -z "$odoo_ref" ]]; then
+    local base when
+    git -C "$HOME/Dev/src/odoo" fetch -q origin "$base_branch" 2>/dev/null || true
+    base=$(git -C "$HOME/Dev/src/enterprise" merge-base "$ent_sha" "origin/$base_branch" 2>/dev/null) \
+      || base="$ent_sha"
+    when=$(git -C "$HOME/Dev/src/enterprise" log -1 --format=%ct "$base")
+
+    local before after b_sha a_sha b_d a_d
+    before=$(git -C "$HOME/Dev/src/odoo" log "origin/$base_branch" --before="@$when" -1 --format='%H %ct')
+    after=$(git -C "$HOME/Dev/src/odoo" log "origin/$base_branch" --after="@$when" --reverse --format='%H %ct' | head -1)
+    b_sha=${before%% *}; a_sha=${after%% *}
+    b_d=$(( when - ${${before##* }:-0} ))
+    a_d=$(( ${${after##* }:-99999999} - when ))
+
+    if [[ -n "$a_sha" && $a_d -lt $b_d ]]; then
+      odoo_ref="$a_sha"
+    else
+      odoo_ref="$b_sha"
+    fi
+    print -r -- "${GREEN}odoo date-matched to ${BLUE}${base_branch}${NC}${GREEN}@fork ${YELLOW}$(date -d "@$when" '+%F %T')${NC} ${GREEN}-> ${YELLOW}${odoo_ref:0:12}${NC} ${BLUE}(approximate)${NC}"
+  fi
+
+  # The pinned commit may predate the local clone's fetch of it.
+  git -C "$HOME/Dev/src/odoo" cat-file -e "${odoo_ref}^{commit}" 2>/dev/null \
+    || git -C "$HOME/Dev/src/odoo" fetch -q origin "$base_branch"
+
+  mkdir -p "$root"
+  git -C "$HOME/Dev/src/enterprise" worktree add -q "$root/enterprise" "$ent_ref" || return 1
+  git -C "$HOME/Dev/src/odoo" worktree add -q --detach "$root/odoo" "$odoo_ref" || return 1
+
+  local port=$(_oport_free)
+  cat > "$root/.oenv" <<EOF
+name=$slug
+odoo=odoo
+addons=enterprise,odoo/addons
+http_port=$port
+gevent_port=$((port + 3))
+EOF
+
+  # Seed both confs so the env is usable from nvim before any shell run.
+  OROOT="$root" _oconf dev >/dev/null
+  OROOT="$root" _oconf test >/dev/null
+
+  print -r -- "${GREEN}env ${CYAN}${BOLD}$slug${NC}${GREEN} ready${NC}"
+  OROOT="$root" _obanner
+  print -r -- "  ${BOLD}cd $root${NC}   ${BLUE}# then otest/onew/oub just work${NC}"
+}
+
+# Tear down an env created by owt.
+#   owtrm <slug> [y]   -- pass y to also drop oes_<slug> without asking
+function owtrm() {
+  local slug="${1:?usage: owtrm <slug> [y]}" auto="${2:-}"
+  local root="$HOME/Dev/wt/$slug"
+
+  [[ -d "$root" ]] || { print -r -- "${RED}no env at $root${NC}" >&2; return 1; }
+  [[ "${OROOT:A}" == "${root:A}" ]] && unset OROOT
+
+  git -C "$HOME/Dev/src/enterprise" worktree remove --force "$root/enterprise" 2>/dev/null
+  git -C "$HOME/Dev/src/odoo" worktree remove --force "$root/odoo" 2>/dev/null
+  rm -rf "$root"
+  print -r -- "${GREEN}removed env $slug${NC}"
+
+  if psql -lqt 2>/dev/null | cut -d\| -f1 | grep -qw "oes_$slug"; then
+    if [[ "$auto" == y ]]; then
+      ocleanup "$slug" y
+    else
+      print -r -- "${YELLOW}database oes_$slug still exists${NC} (ocleanup $slug)"
+    fi
+  fi
 }
 
 # Function to download a runbot database and restore it.
@@ -96,11 +463,9 @@ function onew() {
 
   ocleanup "$DB_NAME"
 
-  cd ~/Dev/src/
   # No http server unless a passed-through --test-enable forces one; the ports
   # only matter in that case, and cost nothing otherwise.
-  echo "odoo-bin -d oes_$DB_NAME $(_oports) $@ --stop-after-init"
-  odoo-bin -d oes_$DB_NAME ${=$(_oports)} "$@" --stop-after-init;
+  _orun test -d oes_$DB_NAME ${=$(_oports)} "$@" --stop-after-init;
   cd $cwd
 }
 
@@ -124,13 +489,10 @@ function otest() {
   # Before "$@", so an explicit --http-port on the command line still wins.
   local -a PORTS=(${=$(_oports)})
 
-  cd ~/Dev/src/
   if [[ -n "$TAGS" ]]; then
-    echo "odoo-bin -d oes_$DB_NAME --test-tags $TAGS $(_oports) $@ --stop-after-init"
-    odoo-bin -d oes_$DB_NAME --test-tags "$TAGS" "${PORTS[@]}" "$@" --stop-after-init;
+    _orun test -d oes_$DB_NAME --test-tags "$TAGS" "${PORTS[@]}" "$@" --stop-after-init;
   else
-    echo "odoo-bin -d oes_$DB_NAME --test-enable $(_oports) $@ --stop-after-init"
-    odoo-bin -d oes_$DB_NAME --test-enable "${PORTS[@]}" "$@" --stop-after-init;
+    _orun test -d oes_$DB_NAME --test-enable "${PORTS[@]}" "$@" --stop-after-init;
   fi
   cd $cwd
 }
@@ -153,10 +515,8 @@ function oub() {
   fi
   local cwd=$(pwd)
 
-  cd ~/Dev/src/
   # As in onew: only binds if a passed-through --test-enable asks for it.
-  echo "odoo-bin -d oes_$DB_NAME -u $MODULES $(_oports) $@ --stop-after-init"
-  odoo-bin -d oes_$DB_NAME -u "$MODULES" ${=$(_oports)} "$@" --stop-after-init;
+  _orun test -d oes_$DB_NAME -u "$MODULES" ${=$(_oports)} "$@" --stop-after-init;
   cd $cwd
 }
 
@@ -265,6 +625,15 @@ function oswitch() {
 
   if [[ "$VERSION" == "" ]]; then
     echo "usage: oswitch <branch>   (- for previous branch)"
+    return 1
+  fi
+
+  # Worktree envs are pinned to a ref on purpose: swapping them defeats the
+  # point, and date-matching across repos is owt's job. Refuse rather than
+  # silently switching the main checkouts from inside one.
+  if [[ "$(_oroot)" != "$ODOO_PATH" ]]; then
+    echo -e "${RED}refusing to oswitch: active env is ${YELLOW}$(_oroot)${NC}" >&2
+    echo -e "${RED}use ${YELLOW}owt${NC}${RED} for a new pinned env, or ${YELLOW}cd ~/Dev/src${NC}" >&2
     return 1
   fi
 
