@@ -131,8 +131,54 @@ function _oconf() {
   print -r -- "$conf"
 }
 
-# One-line env banner. Green bar on the default env, yellow anywhere else, so
-# an implicitly-picked env is never silent.
+# Write the odoo language server config for the active env from its .oenv, printing the path.
+function _oools() {
+  local root=$(_oroot)
+  local name=$(_oenv_get name "${root:t}")
+  local odoo_dir=$(_oenv_get odoo odoo)
+  local addons=$(_oenv_get addons "enterprise,${odoo_dir}/addons")
+  local python=$(_oenv_get python "\${userHome}/.pyenv/versions/odoo/bin/python")
+
+  # <odoo>/addons comes with odoo_path, so listing it again would duplicate the root.
+  local -a paths=() parts=(${(s:,:)addons})
+  local p
+  for p in $parts; do
+    [[ -z "$p" || "$p" == "${odoo_dir}/addons" ]] && continue
+    paths+=("\"$p\"")
+  done
+
+  local toml="$root/odools.toml"
+  cat > "$toml" <<EOF
+# Generated from .oenv by \`oools\`, with paths relative to this file. Do not hand-edit.
+[[config]]
+name = "$name"
+odoo_path = "$odoo_dir"
+addons_paths = [${(j:, :)paths}]
+addons_merge = "override"
+python_path = "$python"
+stdlib = "\${userHome}/.local/share/nvim/odoo/typeshed/stdlib"
+additional_stubs = ["\${userHome}/.local/share/nvim/odoo/typeshed/stubs"]
+additional_stubs_merge = "override"
+tsserver_command = "$HOME/.local/share/nvim/mason/packages/typescript-language-server/node_modules/.bin/tsserver"
+EOF
+
+  print -r -- "$toml"
+}
+
+# Regenerate the odools.toml of the active env, or of every known env with --all.
+function oools() {
+  if [[ "${1:-}" == "--all" ]]; then
+    local f
+    for f in ${HOME}/Dev/src/.oenv ${HOME}/Dev/src/*/.oenv(N) ${HOME}/Dev/wt/*/.oenv(N); do
+      print -r -- "${GREEN}$(OROOT="${f:h}" _oools)${NC}"
+    done
+    return
+  fi
+  _obanner
+  print -r -- "${GREEN}$(_oools)${NC}"
+}
+
+# One-line env banner, yellow off the default env, so an implicitly-picked env is never silent.
 function _obanner() {
   local root=$(_oroot)
   local name=$(_oenv_get name "${root:t}")
@@ -382,17 +428,17 @@ http_port=$port
 gevent_port=$((port + 3))
 EOF
 
-  # Seed both confs so the env is usable from nvim before any shell run.
+  # Seed the confs and the LS profile so the env is usable from nvim before any shell run.
   OROOT="$root" _oconf dev >/dev/null
   OROOT="$root" _oconf test >/dev/null
+  OROOT="$root" _oools >/dev/null
 
   print -r -- "${GREEN}env ${CYAN}${BOLD}$slug${NC}${GREEN} ready${NC}"
   OROOT="$root" _obanner
   print -r -- "  ${BOLD}cd $root${NC}   ${BLUE}# then otest/onew/oub just work${NC}"
 }
 
-# Tear down an env created by owt.
-#   owtrm <slug> [y]   -- pass y to also drop oes_<slug> without asking
+# Tear down an env created by owt: owtrm <slug> [y], where y also drops oes_<slug> unprompted.
 function owtrm() {
   local slug="${1:?usage: owtrm <slug> [y]}" auto="${2:-}"
   local root="$HOME/Dev/wt/$slug"

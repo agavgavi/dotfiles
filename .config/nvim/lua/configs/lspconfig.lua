@@ -50,41 +50,44 @@ end
 -- enabled with their nvim-lspconfig defaults, no local overrides
 local plain = { 'lua_ls', 'bashls', 'html', 'cssls' }
 
+--- ~/Dev first (keeps rootUri) plus the active env, whose odools.toml needs its own walk-up.
+local function odoo_ws_folders()
+  local folders = { { uri = vim.uri_from_fname('/home/andg/Dev'), name = '/home/andg/Dev' } }
+  local setup = require('configs.odoo_setups').current()
+  if setup and setup.root and setup.root ~= '/home/andg/Dev' then
+    table.insert(folders, { uri = vim.uri_from_fname(setup.root), name = setup.odools_profile })
+  end
+  return folders
+end
+
 
 -- name -> vim.lsp.config() overrides
 local servers = {
-  -- everything protocol-shaped (handlers, restart, utf-16 caps, filetypes)
-  -- comes from the odoo-neovim plugin; only personal overrides live here.
+  -- Everything protocol-shaped comes from the odoo-neovim plugin, leaving personal overrides here.
   odoo_ls = {
-    -- --config-path pins the config regardless of launch dir (the server's
-    -- own discovery walks up from root_dir, which would miss ~/Dev).
-    -- test builds: swap the binary, then :OdooLs restart
+    -- --config-path pins ~/Dev/odools.toml, read with no current ws (bare ${workspaceFolder} dies).
     cmd = { '/home/andg/Dev/archived/odoo-ls/server/target/release/odoo_ls_server', '--config-path', '/home/andg/Dev/odools.toml' },
-    -- cmd = { 'odoo_ls_server', '--config-path', '/home/andg/Dev/odools.toml' },
-    -- LOAD-BEARING: the server only fully re-analyzes MODIFIED buffers that
-    -- live under a workspace folder (else they degrade to Any/dead tokens on
-    -- the first edit, permanently). The derived workspace folder from this
-    -- root covers odoo, enterprise AND ad-hoc task worktrees, and the
-    -- constant root keeps every buffer on ONE client/server instance.
+    -- cmd = { 'odoo_ls_server', '--config-path', '/home/andg/Dev/odools.toml' }, -- released build
+    -- LOAD-BEARING: buffers outside a workspace folder decay to Any on edit, one root = one client.
     root_dir = '/home/andg/Dev',
-    -- NvChad's `vim.lsp.config("*", ...)` on_init nils semanticTokensProvider
-    -- on every client; override with a no-op so odools' semantic tokens survive.
-    on_init = function() end,
-    -- Pick the workspace's profile at CLIENT-START time; a static value would
-    -- freeze at the cwd this file was sourced with (persistence.nvim swaps it).
-    before_init = function(_, config)
+    -- Override NvChad's on_init, which nils semanticTokensProvider, and mirror the sent folders.
+    on_init = function(client)
+      client.workspace_folders = odoo_ws_folders()
+    end,
+    -- Resolved at CLIENT-START: a static value would freeze at the cwd this file was sourced with.
+    before_init = function(params, config)
       -- Mutate in place: the client already aliased `config.settings`.
       config.settings.Odoo.selectedProfile = require('configs.odoo_setups').current().odools_profile
+      params.workspaceFolders = odoo_ws_folders()
     end,
     settings = {
       Odoo = {
-        selectedProfile = 'Custom Setup', -- must match a profile in odools.toml
+        selectedProfile = 'src', -- must match a profile in some odools.toml
       }
     },
   },
   ruff = {
-    -- odoo_ls is utf-16-only (lemminx coexistence); pin ruff to utf-16 too so
-    -- python buffers don't mix position encodings (checkhealth vim.lsp warning).
+    -- odoo_ls is utf-16-only, so pin ruff too or python buffers mix position encodings.
     capabilities = { general = { positionEncodings = { 'utf-16' } } },
     init_options = {
       settings = {
