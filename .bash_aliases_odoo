@@ -1,52 +1,21 @@
 #!/usr/bin/zsh
-# Odoo development aliases & functions, sourced from .bash_aliases.
-# Color vars (GREEN/YELLOW/...) are defined there before this file loads.
+# Odoo aliases & functions, sourced from .bash_aliases, which defines the color vars first.
 
 alias odoo-bin='~/Dev/src/odoo/odoo-bin'
 alias psus='ssh 6914273@psus-tools.odoo.com'
 
-# Interactive servers for the non-default envs. Thin wrappers over _orun, so the
-# binary, addons_path and ports all come from each env's .oenv (see below) --
-# there is nothing hardcoded here and nothing to keep in sync by hand.
+# Interactive servers for the non-default envs, with binary/addons/ports from each .oenv.
 function odoo-iap()     { OROOT=~/Dev/src/iap         _orun dev "$@" }
 function odoo-odoofin() { OROOT=~/Dev/src/odoofin-env _orun dev "$@" }
 
-# All DB-taking functions target oes_<name>. Accept a name that already carries
-# the prefix so `otest oes_foo` and `otest foo` both mean the same database.
+# DB-taking functions target oes_<name>, accepting the prefix too: `otest oes_foo` == `otest foo`.
 function _ostripdb() {
   echo "${1#oes_}"
 }
 
-# Ports for the one-shot commands below. They pass --stop-after-init, which
-# normally skips the http server entirely -- but --test-enable/--test-tags force
-# it up anyway (service/server.py: `if config['test_enable'] or ...`). Without an
-# override an HttpCase then talks to whatever dev server holds the default port,
-# lands on the wrong database, and the HTTP half of the suite dies with
-# SessionExpiredException.
-# Kept clear of every configured instance: main 8069/8572 (~/.odoorc),
-# odoofin 6969/8073, iap 8049/8549. Per-env values come from .oenv, see the
-# "Odoo environments" section below (_oports lives there now).
+# Test runs force an http server up, which without these ports would hit a running instance's DB.
 
-# ---------------------------------------------------------------------------
-# Odoo environments (worktree-aware)
-#
-# An "env" is a directory holding an odoo checkout and its companions, marked
-# by a `.oenv` file that records its addons layout and its port pair. Every
-# DB-taking helper resolves its env the same way:
-#
-#   1. $OROOT if exported          (one-shot:  OROOT=~/Dev/wt/foo otest ...)
-#   2. nearest .oenv walking up from $PWD, stopping at $HOME   (implicit)
-#   3. ~/Dev/src                   (the default; also has a .oenv)
-#
-# `.oenv` is a flat key=value file. Recognised keys, all optional:
-#   name=        display name           (default: basename of the root)
-#   odoo=        odoo checkout dirname  (default: odoo)
-#   addons=      comma-separated addons_path entries, relative to the root,
-#                in order            (default: enterprise,odoo/addons)
-#   http_port=   http port              (default: 8869)
-#   gevent_port= gevent port            (default: http_port + 3)
-#   extra=       ';'-separated extra conf lines, e.g. "unaccent = True"
-# ---------------------------------------------------------------------------
+# Env = a dir with a .oenv, resolved $OROOT > nearest .oenv above $PWD > ~/Dev/src (see CLAUDE.md).
 
 # Resolve the active env root. Prints an absolute path, always succeeds.
 function _oroot() {
@@ -83,15 +52,7 @@ function _oports() {
   print -r -- "--http-port=$http --gevent-port=$(_oenv_get gevent_port $((http + 3)))"
 }
 
-# Generate a conf for the active env from ~/.odoorc, on every call (never
-# cached, so edits to ~/.odoorc always take). Prints the conf path.
-#   _oconf [test]   -- pass "test" to strip dev_mode/dev, which otherwise
-#                      implies `xml` and permanently disables QWeb caching.
-#
-# Written to a stable path *inside* the env (`.oenv.conf`, `.oenv-test.conf`)
-# rather than a cache dir, so the env is self-describing: any other tool -- the
-# nvim DAP config, in particular -- can point at a known path instead of having
-# to shell out to this function. owt seeds both at creation; every run refreshes.
+# Rebuild the env's .oenv[-test].conf, where "test" drops dev_mode because it kills QWeb caching.
 function _oconf() {
   local root=$(_oroot) mode="${1:-dev}"
   local odoo_dir=$(_oenv_get odoo odoo)
@@ -233,10 +194,7 @@ function _orun() {
   "$bin" -c "$conf" "$@"
 }
 
-# Show or set the active env for this shell.
-#   oenv            -- print the active env, and every env known under ~/Dev
-#   oenv <path|slug> -- export OROOT (a bare slug resolves under ~/Dev/wt)
-#   oenv -          -- unset OROOT, back to implicit resolution
+# Show or set the env: bare lists them, <path|slug> exports OROOT, `-` restores implicit resolution.
 function oenv() {
   local target="${1:-}"
 
@@ -270,8 +228,7 @@ function oenv() {
   done
 }
 
-# Pick the lowest free http port from the pool, skipping ones already claimed
-# by an .oenv. 8069/8572, 6969/8073, 8049/8549 are the long-lived instances.
+# Lowest free http port, skipping .oenv-claimed ones and the long-lived 8069, 6969 and 8049 pairs.
 function _oport_free() {
   local -a taken=(8069 8572 6969 8073 8049 8549 8869 8872)
   local f p
@@ -328,9 +285,7 @@ function owt() {
     return 1
   fi
 
-  # Resolve the enterprise ref, fetching a PR head if asked for one. Fetch into
-  # FETCH_HEAD rather than straight into the branch: the branch may already be
-  # checked out in another worktree, which git refuses to update.
+  # Fetch into FETCH_HEAD, not the branch: it may be checked out elsewhere, which git refuses.
   local ent_ref="$ref"
   if [[ "$ref" == pr/* ]]; then
     local num="${ref#pr/}"
@@ -531,9 +486,7 @@ function ocleanup() {
   echo "Database $DB_NAME cleaned up."
 }
 
-# Function to create a new DB, similar to newdb.sh but doesn't swap versions and
-# supports passing commands to odoo-bin. To do a specific version must check that version
-# out in all folders first.
+# Create a new DB, passing extra args to odoo-bin. Check the target version out everywhere first.
 function onew() {
   local DB_NAME=$(_ostripdb "${1:-""}")
 
@@ -546,15 +499,12 @@ function onew() {
 
   ocleanup "$DB_NAME"
 
-  # No http server unless a passed-through --test-enable forces one; the ports
-  # only matter in that case, and cost nothing otherwise.
+  # No http server unless a passed-through --test-enable forces one, so the ports cost nothing.
   _orun test -d oes_$DB_NAME ${=$(_oports)} "$@" --stop-after-init;
   cd $cwd
 }
 
-# Run tests on a database.
-# Usage: otest DB_NAME [TEST_TAGS] [odoo-bin args...]
-#   TEST_TAGS: :TestClass.test_func,/test_module ; omit to run all tests (--test-enable)
+# otest DB [TAGS] [args...] where TAGS = :TestClass.test_func,/test_module, omit for every test.
 function otest() {
   local DB_NAME=$(_ostripdb "${1:-""}")
 
@@ -580,10 +530,7 @@ function otest() {
   cd $cwd
 }
 
-# Upgrade modules on a database and exit (-u base by default).
-# Usage: oub DB_NAME [MODULES] [odoo-bin args...]
-#   oub airwallex                 # -u base
-#   oub airwallex sale,account    # -u sale,account
+# oub DB [MODULES] [args...]: upgrade comma-separated modules and exit, -u base by default.
 function oub() {
   local DB_NAME=$(_ostripdb "${1:-""}")
   if [[ "$DB_NAME" == "" ]] ; then
@@ -603,8 +550,7 @@ function oub() {
   cd $cwd
 }
 
-# Update all folders (pulls run in parallel; one summary line per repo,
-# full git output only on failure)
+# Pull every source repo in parallel, one summary line each, full git output only on failure.
 function oupdate() {
     setopt local_options no_notify no_monitor
     set -o shwordsplit
@@ -643,15 +589,7 @@ function oupdate() {
     cd $cwd
 }
 
-# Rebase current branch onto a base version, replaying only your commits.
-# Usage: orebase <new-base> [<old-base>]
-#   <new-base>   The branch to rebase onto (e.g. master, 19.0).
-#   <old-base>   The original base of the feature branch. If omitted, inferred
-#                from the branch-name prefix (e.g. master-foo-andg -> master).
-# Examples:
-#   orebase master                 # catch up: same-base rebase
-#   orebase 19.0                   # move feature branch from master to 19.0
-#   orebase 19.0 17.0              # explicit override when inference is wrong
+# orebase <new-base> [<old-base>]: replay only your commits, old base inferred from the branch name.
 function orebase() {
   setopt local_options rematchpcre
 
@@ -695,10 +633,7 @@ function ogit() {
   git log -G "$STRING" --since="$DATE" --grep="$GREP" -p | egrep "(^commit [0-9a-f]+$)|diff --git|$STRING"
 }
 
-# Swap odoo + enterprise to a branch, in parallel. If a repo doesn't have the
-# branch (locally or on origin), falls back to the base version inferred from
-# its name (master-foo-andg -> master). `oswitch -` = previous branch per repo.
-# Remote-qualified names are accepted and stripped (odoo-dev:master-foo -> master-foo).
+# Swap odoo + enterprise in parallel, falling back to the base version in the name. `-` = previous.
 function oswitch() {
   setopt local_options no_notify no_monitor shwordsplit rematchpcre
 
@@ -711,9 +646,7 @@ function oswitch() {
     return 1
   fi
 
-  # Worktree envs are pinned to a ref on purpose: swapping them defeats the
-  # point, and date-matching across repos is owt's job. Refuse rather than
-  # silently switching the main checkouts from inside one.
+  # Worktree envs are pinned on purpose: refuse, rather than switching the main checkouts from one.
   if [[ "$(_oroot)" != "$ODOO_PATH" ]]; then
     echo -e "${RED}refusing to oswitch: active env is ${YELLOW}$(_oroot)${NC}" >&2
     echo -e "${RED}use ${YELLOW}owt${NC}${RED} for a new pinned env, or ${YELLOW}cd ~/Dev/src${NC}" >&2
@@ -761,8 +694,7 @@ function oswitch() {
   cd $cwd
 }
 
-# Reinstall pydevd_plugin_odoo.py into a pyenv's debugpy vendored extensions
-# (debugpy upgrades clobber it). Usage: oinstall-pydevd <pyenv-name>
+# oinstall-pydevd <pyenv-name>: reinstall pydevd_plugin_odoo.py, which debugpy upgrades clobber.
 oinstall-pydevd() {
   local env_name="${1:-odoo}"
   local src="$HOME/dotfiles/.config/nvim/scripts/pydevd_plugin_odoo.py"
@@ -785,16 +717,12 @@ oinstall-pydevd() {
   cp "$src" "$dest_dir/" && echo "installed pydevd_plugin_odoo.py -> $dest_dir"
 }
 
-# Point Claude Code's `odoo` MCP entry at a local Odoo DB, minting a fresh mcp-scoped
-# API key (auto-rotating). Targets oes_DB_NAME, matching onew/otest.
-# Usage: omcp DB_NAME   then reconnect with /mcp in Claude Code (or restart).
+# omcp DB: point Claude Code's `odoo` MCP at oes_DB with a fresh key, then reconnect with /mcp.
 function omcp() {
   "$HOME/.claude/hooks/odoo-mcp-sync.sh" "oes_$(_ostripdb "${1:?usage: omcp DB_NAME}")"
 }
 
-# Install odoo_ls_server from a branch and sync the runtime typeshed clone to
-# the commit that branch pins (stubs must match what the server was tested with).
-# Usage: olsup [BRANCH]   (default alpha-1.5.0; e.g. olsup alpha, olsup alpha-1.6.0)
+# olsup [BRANCH]: install odoo_ls_server (default alpha-1.5.0) + the typeshed commit it pins.
 function olsup() {
   local branch=${1:-alpha-1.5.0}
   cargo install --git https://github.com/odoo/odoo-ls --branch "$branch" odoo_ls_server || return
@@ -881,8 +809,7 @@ if [[ -n "$ZSH_VERSION" ]] && [[ -o interactive ]]; then
       '1:new base:_odoo_branches' \
       '2:old base:_odoo_branches'
   }
-  # Existing oes_* databases, offered without the oes_ prefix (every db-taking
-  # function strips it through _ostripdb, so both forms work).
+  # Existing oes_* databases, offered without the prefix, which _ostripdb accepts either way.
   _odoo_databases() {
     local -a dbs
     dbs=(${(f)"$(psql -t -A -d postgres -c \

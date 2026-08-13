@@ -117,10 +117,7 @@ local servers = {
     },
   },
   lemminx = {
-    -- lemminx sends the spec-CORRECT spelling `unregistrations`, but the LSP
-    -- spec (and nvim's default handler) use the misspelled `unregisterations`,
-    -- so nvim reads nil and ipairs() errors (neovim #30985). Normalize the
-    -- field, then delegate to the default handler.
+    -- lemminx spells `unregistrations` right but nvim wants the typo, erroring on nil (#30985).
     handlers = {
       ['client/unregisterCapability'] = function(err, params, ctx)
         if type(params) == 'table' and params.unregisterations == nil then

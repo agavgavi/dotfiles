@@ -21,8 +21,7 @@ local LIST_QUERY = "SELECT datname FROM pg_database WHERE datname LIKE 'oes_%' O
 local VERSION_QUERY =
   [[select replace((regexp_matches(latest_version, '^\d+\.\d+|^saas~\d+\.\d+|saas~\d+'))[1], '~', '-') from ir_module_module where name='base']]
 
---- Lists oes_* databases with versions off the UI thread; on_done(items|nil, err).
---- Two psql spawns: the second `\c` reconnects, vs one process per database.
+--- Lists oes_* databases with versions off the UI thread, calling on_done(items|nil, err).
 local function get_database_tables(on_done)
   local function done(items, err)
     -- vim.system callbacks are a fast event context; the API needs the main loop.
@@ -129,8 +128,7 @@ end;
 
 local odoo_setups = require "configs.odoo_setups"
 
--- Resolve at LAUNCH time: ft="python" sources this once, so a local would stay
--- frozen at that cwd while persistence.nvim swaps projects underneath it.
+-- Resolve at LAUNCH time: sourced once on ft="python", so a local would freeze at that cwd.
 local workspace_config = {
   type = 'python',
   justmycode = false,

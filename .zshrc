@@ -81,8 +81,7 @@ alias cat=bat
 export BAT_THEME="Catppuccin Mocha"
 alias more=bat
 alias vim=nvim
-# ngrok's TUI only recognizes a few TERM names and falls back to a "solaris"
-# message for tmux-256color; feed it xterm-256color without changing tmux's TERM
+# ngrok's TUI falls back to a "solaris" message for tmux-256color, so feed it xterm-256color.
 alias ngrok='TERM=xterm-256color ngrok'
 
 [ -f ~/.fzf.zsh ] && source ~/.fzf.zsh
