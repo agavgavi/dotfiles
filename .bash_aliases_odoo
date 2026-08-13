@@ -143,23 +143,30 @@ function _obanner() {
   local out="${bar_color}▏${NC}${BOLD}${CYAN}${name}${NC}"
   out+=" ${BLUE}:$(_oenv_get http_port 8869)${NC}"
 
-  # Repos to report = the odoo checkout plus the top-level dir of every addons
-  # entry, deduped and order-preserved, so each env describes itself.
+  # Report the odoo checkout plus each addons entry's top dir, so every env describes itself.
   local addons=$(_oenv_get addons "enterprise,${odoo_dir}/addons")
   local -a repos=("$odoo_dir" ${${(s:,:)addons}%%/*})
-  local d sha branch
+  local d sha branch up pushdef
   for d in ${(u)repos}; do
     [[ -e "$root/$d/.git" ]] || continue
     sha=$(git -C "$root/$d" rev-parse --short=8 HEAD 2>/dev/null) || continue
     branch=$(git -C "$root/$d" rev-parse --abbrev-ref HEAD 2>/dev/null)
     [[ "$branch" == HEAD ]] && branch="detached"
     out+="  ${d} ${YELLOW}${sha}${NC}${GREEN}(${branch})${NC}"
+
+    # A pr-<N> worktree pushes to the PR's own head branch, a skew that is invisible otherwise.
+    pushdef=$(git -C "$root/$d" config --get push.default 2>/dev/null)
+    up=$(git -C "$root/$d" rev-parse --abbrev-ref '@{upstream}' 2>/dev/null)
+    if [[ "$pushdef" == nothing ]]; then
+      out+="${RED}↛${NC}"
+    elif [[ -n "$up" && "${up##*/}" != "$branch" ]]; then
+      out+="${BLUE}→${up}${NC}"
+    fi
   done
   print -r -- "$out"
 }
 
-# Run odoo-bin inside the active env. All args are passed through.
-#   _orun [test] -- <odoo-bin args...>
+# Run odoo-bin inside the active env: _orun [test] -- <odoo-bin args...>, all args passed through.
 function _orun() {
   local mode=dev
   if [[ "$1" == test ]]; then mode=test; shift; fi
@@ -235,13 +242,29 @@ function _oport_free() {
   print -r -- 8900
 }
 
-# Create an isolated env from worktrees of odoo + enterprise.
-#   owt <slug> <ref> [<odoo-ref>]
-#
-# <ref> is checked out in enterprise (a branch, tag, sha, or pr/<N> to fetch a
-# pull request head). odoo is date-matched to it unless <odoo-ref> is given --
-# a skew of even a few days across the two repos breaks module loading, so this
-# is the default rather than an option.
+# Track the PR's head branch so a push updates the PR instead of inventing a pr-<N> branch on dev.
+function _owt_wire_push() {
+  local wt="$1" head="$2" owner="$3"
+  local shared="$HOME/Dev/src/enterprise"
+
+  git -C "$shared" config extensions.worktreeConfig true
+
+  if [[ "$owner" == odoo-dev && "$head" == *-andg ]]; then
+    git -C "$shared" fetch -q dev "$head" 2>/dev/null
+    if git -C "$shared" show-ref -q --verify "refs/remotes/dev/$head"; then
+      git -C "$wt" branch --set-upstream-to="dev/$head" >/dev/null || return 1
+      git -C "$wt" config --worktree push.default upstream
+      print -r -- "${GREEN}push → ${YELLOW}dev/$head${NC}"
+      return
+    fi
+    print -r -- "${YELLOW}note: dev/$head not found; pushing is disabled here${NC}"
+  fi
+
+  git -C "$wt" config --worktree push.default nothing
+  print -r -- "${YELLOW}push disabled${NC} ${BLUE}(not your branch -- a push would create a stray dev branch)${NC}"
+}
+
+# owt <slug> <ref|pr/N> [<odoo-ref>]: isolated env, odoo pinned to match since skew breaks loading.
 function owt() {
   setopt local_options no_notify no_monitor
 
@@ -286,20 +309,17 @@ function owt() {
     return 1
   }
 
-  # Pin odoo. Runbot pairs a branch with the base-branch *batch* it forked from,
-  # which follows runbot's own batching cadence -- not git timestamps, which can
-  # only ever approximate it (they land within a commit or two). So ask runbot
-  # when a bundle exists, and fall back to the nearest master commit otherwise.
+  # Ask runbot which base batch the bundle forked from, since git timestamps only approximate it.
   git -C "$HOME/Dev/src/odoo" fetch -q origin || true
 
-  # The base branch the fallback measures against. A dev branch is cut from its
-  # own version (`saas-19.4-foo-andg` -> `saas-19.4`), not from master, and
-  # runbot reports it as "from base: <version>". For a PR, ask github; for a
-  # plain branch ref, take the version prefix the way oswitch/orebase do.
-  local base_branch bundle
+  # A dev branch is cut from its own version (saas-19.4-foo-andg -> saas-19.4), never from master.
+  local base_branch bundle pr_owner pr_json
   if [[ "$ref" == pr/* ]]; then
-    base_branch=$(gh pr view "${ref#pr/}" --repo odoo/enterprise --json baseRefName -q .baseRefName 2>/dev/null)
-    bundle=$(gh pr view "${ref#pr/}" --repo odoo/enterprise --json headRefName -q .headRefName 2>/dev/null)
+    pr_json=$(gh pr view "${ref#pr/}" --repo odoo/enterprise \
+      --json baseRefName,headRefName,headRepositoryOwner 2>/dev/null)
+    base_branch=$(jq -r '.baseRefName // empty' <<<"$pr_json")
+    bundle=$(jq -r '.headRefName // empty' <<<"$pr_json")
+    pr_owner=$(jq -r '.headRepositoryOwner.login // empty' <<<"$pr_json")
   else
     bundle="$ent_ref"
     [[ "$ent_ref" =~ '^(master|saas-[0-9]+\.[0-9]+|[0-9]+\.[0-9]+)' ]] && base_branch="$match[1]"
@@ -351,6 +371,8 @@ except Exception:
   git -C "$HOME/Dev/src/enterprise" worktree add -q "$root/enterprise" "$ent_ref" || return 1
   git -C "$HOME/Dev/src/odoo" worktree add -q --detach "$root/odoo" "$odoo_ref" || return 1
 
+  [[ "$ref" == pr/* ]] && _owt_wire_push "$root/enterprise" "$bundle" "$pr_owner"
+
   local port=$(_oport_free)
   cat > "$root/.oenv" <<EOF
 name=$slug
@@ -378,10 +400,25 @@ function owtrm() {
   [[ -d "$root" ]] || { print -r -- "${RED}no env at $root${NC}" >&2; return 1; }
   [[ "${OROOT:A}" == "${root:A}" ]] && unset OROOT
 
+  # Note the throwaway pr-<N> branch before the checkout goes, so it can be cleaned up below.
+  local ent_branch ent_sha
+  ent_branch=$(git -C "$root/enterprise" rev-parse --abbrev-ref HEAD 2>/dev/null)
+  ent_sha=$(git -C "$root/enterprise" rev-parse --short=11 HEAD 2>/dev/null)
+
   git -C "$HOME/Dev/src/enterprise" worktree remove --force "$root/enterprise" 2>/dev/null
   git -C "$HOME/Dev/src/odoo" worktree remove --force "$root/odoo" 2>/dev/null
   rm -rf "$root"
   print -r -- "${GREEN}removed env $slug${NC}"
+
+  # Only ever pr-<N>: a named branch checked out in a worktree is real work.
+  if [[ "$ent_branch" =~ '^pr-[0-9]+$' ]]; then
+    if [[ -z $(git -C "$HOME/Dev/src/enterprise" branch -r --contains "$ent_sha" 2>/dev/null) ]]; then
+      print -r -- "${YELLOW}$ent_branch is on no remote; keeping it${NC} ${BLUE}(git branch -D $ent_branch)${NC}"
+    else
+      git -C "$HOME/Dev/src/enterprise" branch -q -D "$ent_branch" 2>/dev/null \
+        && print -r -- "${GREEN}deleted branch $ent_branch${NC} ${BLUE}(was $ent_sha)${NC}"
+    fi
+  fi
 
   if psql -lqt 2>/dev/null | cut -d\| -f1 | grep -qw "oes_$slug"; then
     if [[ "$auto" == y ]]; then
